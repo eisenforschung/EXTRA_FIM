@@ -267,7 +267,7 @@ class extra_waves():
         sol = scipy.optimize.root(residual, np.zeros([self.Nx, self.Ny], dtype=np.complex128), method='Krylov')
         residual.psi_g_real *= nrm_psi
         psi_extra=residual.psi_g_real
-        return psi_extra,gk_1,gk_2
+        return psi_real,psi_extra,gk_1,gk_2
 
 
 class sx_waves_reader():
