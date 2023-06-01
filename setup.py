@@ -1,16 +1,19 @@
 
-''' an input dictionary to set up the initial parameters
-'''
+from setuptools import setup, find_packages
 
-Simulator = {
-            'working_directory': '/u/cfrey/calcs/Ni-FIM/Ni012/pureNi/wv',
-            'ik': 0,
-            'z_max': 35,
-            'izstart_min': 90,
-            'izend': 65,
-            'cutoff': 10,
-            'limit': 1e-10,
-            'E_fermi': 40.4464 ,
-            'E_max': 47.8888,
-            'ionization_energies': [10., 15., 21.5]
-    }
+setup(
+    author="Shalini Bhatt",
+    author_email='s.bhatt@mpie.de',
+    python_requires='>=3.8',
+    
+    description="FIM study with EXTRA",
+    install_requires = ['numpy', 'matplotlib', 'h5py', 'scipy',
+    'netCDF4'],
+            
+    include_package_data=True,
+    keywords='EXTRA_FIM',
+    name='EXTRA_FIM',
+    packages=find_packages(include=['EXTRA_FIM', 'EXTRA_FIM.*']),
+)
+
+
