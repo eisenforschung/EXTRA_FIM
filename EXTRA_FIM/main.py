@@ -5,7 +5,6 @@ import numba
 import scipy
 import netCDF4
 import scipy.optimize
-from pyiron_base import load
 import os.path
 
 
