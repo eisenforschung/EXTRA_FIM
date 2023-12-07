@@ -4,6 +4,7 @@ import numba
 import scipy
 import netCDF4
 import scipy.optimize
+from pyiron_base import load
 import os.path
 
 
@@ -116,8 +117,6 @@ class Residual_extra(numerov_1D):
     def __init__(self,total_V,h,izend,eps,psi_match):
         self.izstart = None
         self.psi_g_real = None
-        if len(total_V.shape) != 3:
-            raise ValueError(f"Dimension is {len(total_V.shape)}, should be 3")
         V1= np.einsum('ijk->k',total_V)/total_V.shape[1]/total_V.shape[0]
         self.total_V=total_V
         super().__init__(V1, h, izend)
@@ -155,7 +154,7 @@ class Residual_extra(numerov_1D):
                         break
                     else:
                         if i == izstart_min:
-                           self.izstart = izstart_min
+                            self.izstart = izstart_min
 
     def vac_to_match(self, psi_bottom):
         psi_rec_num = np.zeros((self.Nx, self.Ny, self.Nz_max), dtype=np.complex128)
@@ -223,20 +222,10 @@ class potential():
         Potential = np.asarray(v_file['mesh']).reshape(v_file['dim'])
         Potential = Potential / self.HARTREE_TO_EV
         vxc_file = netCDF4.Dataset(self.working_directory + "/vXC.sxb")
-       
-        if 'mesh' in vxc_file.variables:
-            # non-spin calculations
-            xc_Potential = np.asarray(vxc_file['mesh']).reshape(vxc_file['dim'])
-            total_V = np.zeros(list(Potential.shape)+[1], dtype=np.float64)
-            total_V[:,:,:,0] = np.add(Potential, xc_Potential)
-        else:
-            # spin calculations
-            xc_Potential_0 = np.asarray(vxc_file['mesh-0']).reshape(vxc_file['dim'])
-            xc_Potential_1 = np.asarray(vxc_file['mesh-1']).reshape(vxc_file['dim'])
-            total_V = np.zeros(list(Potential.shape)+[2], dtype=np.float64)
-            total_V[:,:,:,0] = np.add(Potential, xc_Potential_0)
-            total_V[:,:,:,1] = np.add(Potential, xc_Potential_1)
-        V1 = np.einsum('ijkl->kl', total_V) / total_V.shape[1] / total_V.shape[0]
+        xc_Potential = np.asarray(vxc_file['mesh']).reshape(vxc_file['dim'])
+        total_V = np.zeros_like(Potential.shape, dtype=np.float64)
+        total_V = np.add(Potential, xc_Potential)
+        V1 = np.einsum('ijk->k', total_V) / total_V.shape[1] / total_V.shape[0]
 
         cell = np.asarray(v_file['cell'])
         rec_cell = np.linalg.inv(cell) * 2 * np.pi # get cell coordinates from potential file
@@ -357,10 +346,9 @@ class extra_waves():
         psi_real = np.fft.ifftn(psi)
 
         psi_match = np.fft.ifft2(psi_real[:, :, self.inputDict['izend']])
-        nrm_psi = np.linalg.norm(psi_match) # needs to be figured out
         nrm_psi = 1e4
         psi_match_1 = psi_match / nrm_psi
-        residual = Residual_extra(self.total_V[:, :, :int(self.inputDict['z_max']/self.h),ispin], self.h, self.inputDict['izend'], self.dft_wv.eps[ik, ispin, i],
+        residual = Residual_extra(self.total_V[:, :, :int(self.inputDict['z_max']/dz)], self.h, self.inputDict['izend'], self.dft_wv.eps[ik, ispin, i],
                                   psi_match_1)
 
         istart_list = residual.iso_contour(gk_1, gk_2, self.dft_wv.k_vec[ik, :],
@@ -392,9 +380,6 @@ class FIM_simulations():
         self.wf = sx_waves_reader(inputDict,fname='waves.sxb')
         pot= potential(inputDict)
         self.total_V, self.V1,self.h,self.cell = pot.potential_cell()
-        self.Nx = self.total_V.shape[0]
-        self.Ny = self.total_V.shape[1]
-        self.Nz = self.total_V.shape[2]
        
 
     def search_V(self, V_target, V):
@@ -410,63 +395,45 @@ class FIM_simulations():
 
     def sum_all_states(self):
         ''' compute partial fim image for several ionization energies for all eigenstates between Efermi
-        and Emax for all k points. Save the partial dos files '''
-        for ik in range(0, self.wf.nk):
-            sum_single_k(ik)
-            
-    def sum_single_k(self,ik):
-        ''' compute partial fim image for several ionization energies for all eigenstates between Efermi
         and Emax for one k point (ik). Save the partial dos files '''
-        all_totals_dft = dict()
-        all_totals_extra = dict()
-        z_resolved=dict()
+        
+        all_totals = dict()
         self.Nx = self.total_V.shape[0]
         self.Ny = self.total_V.shape[1]
-        self.Nz = self.total_V.shape[2]
         for IE in self.inputDict['ionization_energies']:
-            all_totals_dft[IE] = np.zeros((self.Nx, self.Ny), dtype=np.float64)
-            all_totals_extra[IE] = np.zeros((self.Nx, self.Ny), dtype=np.float64)
+            all_totals[IE] = np.zeros((self.Nx, self.Ny), dtype=np.float64)
+        for ik in range(0, self.wf.nk):
+            filename = f'partial_dos{ik}.h5'
+            for i in range(0, self.wf.n_states):
+                for ispin in range(self.wf.n_spin):
+                        if self.wf.eps[ik, ispin, i] < self.inputDict['E_fermi'] / self.HARTREE_TO_EV:
+                            continue
+                        if self.wf.eps[ik, ispin, i] < self.inputDict['E_max'] / self.HARTREE_TO_EV:
+                            continue
+                        _,psi_extra,_,_ = self.extra.get_psi(i,ispin,ik)
+                        for IE in self.inputDict['ionization_energies']:
 
-            z_resolved[IE] = np.zeros((self.Nx, self.Ny, self.Nz), dtype=np.float64)
+                            V_target = self.wf.eps[ik, ispin, i]+ (IE / self.HARTREE_TO_EV) 
+                            V1 = np.einsum('ijk->k', self.total_V) / self.total_V.shape[1] / self.total_V.shape[0]
 
+                            z_plot = self.search_V(V_target, V1)  # floating point number
+                            iz_plot = int(z_plot)  # getting integer part of it
+                            lamda = z_plot - iz_plot
+                            print(ik,i,ispin,iz_plot)
 
-        filename = f'partial_dos{ik}.h5'
-        for i in range(0, self.wf.n_states):
-            for ispin in range(self.wf.n_spin):
-                if self.wf.eps[ik, ispin, i] < self.inputDict['E_fermi'] / self.HARTREE_TO_EV:
-                    continue
-                if self.wf.eps[ik, ispin, i] > self.inputDict['E_max'] / self.HARTREE_TO_EV:
-                    continue
-                psi_real,psi_extra,_,_ = self.extra.get_psi(i,ispin,ik)
-                for IE in self.inputDict['ionization_energies']:
+                           # linear interpolation of partial dos
+                            partial_dos = (1 - lamda) * np.abs(psi_extra[:, :, iz_plot]) ** 2 \
+                                              + lamda * np.abs(psi_extra[:, :, iz_plot + 1]) ** 2
+                            all_totals[IE] += self.wf.k_weights[ik] * partial_dos
 
-                    V_target = self.wf.eps[ik, ispin, i]+ (IE / self.HARTREE_TO_EV) 
-                    V1 = np.einsum('ijk->k', self.total_V[:,:,:,ispin]) / self.total_V.shape[1] / self.total_V.shape[0]
-                    z_plot = self.search_V(V_target, V1)  # floating point number
-                    iz_plot = int(z_plot)  # getting integer part of it
-                    lamda = z_plot - iz_plot
+            with h5py.File(filename, 'w') as handle:
+                for IE in all_totals.keys():
+                    handle.create_dataset('IE={}'.format(IE), data= all_totals[IE])
 
-
-                    # linear interpolation of partial dos
-                    partial_dos_dft = (1 - lamda) * np.abs(psi_real[:, :, iz_plot]) ** 2 \
-                                     + lamda * np.abs(psi_real[:, :, iz_plot + 1]) ** 2
-                    partial_dos_extra = (1 - lamda) * np.abs(psi_extra[:, :, iz_plot]) ** 2 \
-                                      + lamda * np.abs(psi_extra[:, :, iz_plot + 1]) ** 2
-
-                    all_totals_dft[IE] += self.wf.k_weights[ik] * partial_dos_dft
-                    all_totals_extra[IE] += self.wf.k_weights[ik] * partial_dos_extra
-                    z_resolved[IE][:,:,iz_plot] += self.wf.k_weights[ik] * partial_dos_extra
-
-        with h5py.File(filename, 'w') as handle:
-            handle.create_dataset('ionization_energies',
-                                  data=self.inputDict['ionization_energies'])
-            for IE in all_totals_extra.keys():
-                handle.create_dataset(f'IE={IE}', data= all_totals_extra[IE])
-                handle.create_dataset(f'zIE={IE}', data= z_resolved[IE])
 
 #functions for FIM images and 1D scan
     def FIM_image(self,path):
-        all_totals = dict ()
+        self.all_totals = dict ()
         # self.xp= xp
         # self.yp= yp
         # self.kpoints=kpoints
@@ -477,14 +444,15 @@ class FIM_simulations():
         gk_1 = np.outer(np.fft.fftfreq(self.Nx, 1 / self.Nx), rec_cell[0])
         gk_2 = np.outer(np.fft.fftfreq(self.Ny, 1 / self.Ny), rec_cell[1])
         for ik in range(self.wf.nk):
-           
-                with h5py.File(f'partial_dos_k{ik}.h5', 'r') as handle:
-                    for varname in handle.keys ():
+            for ispin in range(self.wf.n_spin):
+                with h5py.File(path + '/' + f'partial_dos_k{ik}.h5', 'r') as handle:
+                    for varname in handle.keys():
                         if 'IE=' in varname:
-                            IE = float(str(varname).replace('IE=',''))
-                            if IE not in all_totals.keys ():
-                                all_totals[IE] = np.zeros((self.Nx, self.Ny), dtype=np.float64)
-                            all_totals[IE] += np.asarray(handle[varname])
+                            IE = float(str(varname).replace('IE=', ''))
+                            case = 'case' + str(IE)
+                            if case not in all_totals.keys():
+                                all_totals[case] = np.zeros((self.Nx, self.Ny), dtype=np.float64)
+                            all_totals[case] += np.asarray(handle[varname])
         
         FIM_image_case =np.zeros([self.Nx,self.Ny],dtype=np.complex128)
         xp = np.linspace(0, self.cell[0, 0], self.Nx)
