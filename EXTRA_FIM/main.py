@@ -464,41 +464,4 @@ class FIM_simulations():
                 handle.create_dataset(f'IE={IE}', data= all_totals_extra[IE])
                 handle.create_dataset(f'zIE={IE}', data= z_resolved[IE])
 
-#functions for FIM images and 1D scan
-    def FIM_image(self,path):
-        all_totals = dict ()
-        # self.xp= xp
-        # self.yp= yp
-        # self.kpoints=kpoints
-        # self.spin=spin
 
-        rec_cell = np.linalg.inv(self.cell) * 2 * np.pi # get cell coordinates from potential file
-
-        gk_1 = np.outer(np.fft.fftfreq(self.Nx, 1 / self.Nx), rec_cell[0])
-        gk_2 = np.outer(np.fft.fftfreq(self.Ny, 1 / self.Ny), rec_cell[1])
-        for ik in range(self.wf.nk):
-           
-                with h5py.File(f'partial_dos_k{ik}.h5', 'r') as handle:
-                    for varname in handle.keys ():
-                        if 'IE=' in varname:
-                            IE = float(str(varname).replace('IE=',''))
-                            if IE not in all_totals.keys ():
-                                all_totals[IE] = np.zeros((self.Nx, self.Ny), dtype=np.float64)
-                            all_totals[IE] += np.asarray(handle[varname])
-        
-        FIM_image_case =np.zeros([self.Nx,self.Ny],dtype=np.complex128)
-        xp = np.linspace(0, self.cell[0, 0], self.Nx)
-        yp = np.linspace(0, self.cell[1, 1], self.Ny)
-        FIM_line_1D_case= np.zeros_like(xp)
-        prho_rec_case= np.fft.ifft2(all_totals[IE])
-        for ix in range(xp.shape[0]):
-             for iy in range(yp.shape[0]):
-                x=xp[ix]
-                y=yp[iy]
-                phase_1=np.exp(-1j*(gk_1[:,0]*x+gk_1[:,1]*y))
-                phase_2= np.exp(-1j*(gk_2[:,0]*x+gk_2[:,1]*y))
-                phase=np.outer(phase_1,phase_2)
-                FIM_image_case[ix,iy] =np.sum(prho_rec_case.flatten()*phase.flatten())
-                FIM_line_1D_case[ix] = np.sum(prho_rec_case.flatten() * phase.flatten()).real
-
-        return FIM_image_case, FIM_line_1D_case
