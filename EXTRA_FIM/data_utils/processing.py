@@ -3,7 +3,7 @@ from EXTRA_FIM import main as fim
 import matplotlib.pyplot as plt
 
 #functions for FIM images and 1D scan
-def FIM_image(indput_dict =None,path=None,repeat=None):
+def FIM_image(input_dict =None,path=None,repeat=None):
     '''returns a FIM image based on the input_dict, which has the simulation parameters used to do the actual FIM simulation job, path is the path to the FIM simulation job and repeat is the number of times xy plane should be repeated.'''
     all_totals = dict ()
     fim_simulation = fim.FIM_simulations(inputDict=input_dict)
