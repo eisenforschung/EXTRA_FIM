@@ -10,14 +10,16 @@ class ProcessingFIM():
     
     Attributes:
         fim_simulation (FIM_simulations): An instance of the FIM_simulations.
+        repeat: repeat the cell in xy (int)
         
     Methods:
         FIM_image(psi): create a FIM image based on fim_simulation_job.
         plot_fim_image(image): Plot the simulated image (output of FIM_image).
     '''
     
-    def __init__(self, FIM_simulations):
+    def __init__(self, FIM_simulations,repeat):
         self.fim_simulation = FIM_simulations
+        self.repeat = repeat
 
     def FIM_image(self, path=None):
         '''returns a FIM image based on the input_dict, which has the simulation parameters used to do the actual FIM simulation job, path is the path to the FIM simulation job and repeat is the number of times xy plane should be repeated.'''
@@ -36,8 +38,8 @@ class ProcessingFIM():
                             all_totals[IE] += np.asarray(handle[varname])
         
         FIM_image_case =np.zeros([self.fim_simulation.Nx,self.fim_simulation.Ny],dtype=np.complex128)
-        xp = np.linspace(0, self.fim_simulation.cell[0, 0]*repeat, self.fim_simulation.Nx)
-        yp = np.linspace(0, self.fim_simulation.cell[1, 1]*repeat, self.fim_simulation.Ny)
+        xp = np.linspace(0, self.fim_simulation.cell[0, 0]*self.repeat, self.fim_simulation.Nx)
+        yp = np.linspace(0, self.fim_simulation.cell[1, 1]*self.repeat, self.fim_simulation.Ny)
         # FIM_line_1D_case= np.zeros_like(xp)
         prho_rec_case= np.fft.ifft2(all_totals[IE])
         for ix in range(xp.shape[0]):
@@ -52,13 +54,13 @@ class ProcessingFIM():
 
         return FIM_image_case
 
-    def plot_fim_image(self, fim_image, repeat=None):
+    def plot_fim_image(self, fim_image):
         '''fim_image output of the FIM_image function. Automatically creates levels and gives a matplotlib figure.'''
         vmax=np.max(fim_image.real)
         vmax_lev=np.power(10., np.trunc(np.log10(vmax))-1)
         vmax_lev=(np.trunc(vmax / vmax_lev * 10.)+1)*0.1 * vmax_lev
-        xp = np.linspace(0, self.fim_simulation.cell[0, 0]*repeat, self.fim_simulation.Nx)
-        yp = np.linspace(0, self.fim_simulation.cell[1, 1]*repeat, self.fim_simulation.Ny)
+        xp = np.linspace(0, self.fim_simulation.cell[0, 0]*self.repeat, self.fim_simulation.Nx)
+        yp = np.linspace(0, self.fim_simulation.cell[1, 1]*self.repeat, self.fim_simulation.Ny)
         fig = plt.figure(figsize=[6.5,4])
         plt.contourf(xp/1.89,yp/1.89,fim_image.real.T,vmin=0,vmax=vmax_lev,levels=np.linspace(0,vmax_lev,41))
         plt.rcParams['font.size'] = '16'
