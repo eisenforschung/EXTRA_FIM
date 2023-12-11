@@ -17,9 +17,9 @@ class ProcessingFIM():
     '''
     
     def __init__(self, FIM_simulations):
-        self.fim_simulation = FIm_simulations
+        self.fim_simulation = FIM_simulations
 
-    def FIM_image(self, path=None,repeat=None):
+    def FIM_image(self, path=None):
         '''returns a FIM image based on the input_dict, which has the simulation parameters used to do the actual FIM simulation job, path is the path to the FIM simulation job and repeat is the number of times xy plane should be repeated.'''
         all_totals = dict ()
         rec_cell = np.linalg.inv(self.fim_simulation.cell) * 2 * np.pi # get cell coordinates from potential file
@@ -52,7 +52,7 @@ class ProcessingFIM():
 
         return FIM_image_case
 
-    def plot_fim_image(fim_image):
+    def plot_fim_image(self, fim_image, repeat=None):
         '''fim_image output of the FIM_image function. Automatically creates levels and gives a matplotlib figure.'''
         vmax=np.max(fim_image.real)
         vmax_lev=np.power(10., np.trunc(np.log10(vmax))-1)
