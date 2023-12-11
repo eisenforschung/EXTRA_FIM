@@ -1,5 +1,6 @@
 import numpy as np
 from EXTRA_FIM import main as fim
+import h5py
 import matplotlib.pyplot as plt
 
 #functions for FIM images and 1D scan
