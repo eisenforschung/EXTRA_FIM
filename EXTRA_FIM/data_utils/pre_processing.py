@@ -33,7 +33,7 @@ class PreProcessingFIM():
         self.job = job
         self.imaging_gas = element(imaging_gas)
    
-   @staticmethod
+    @staticmethod
     def find_constant_slope_regions(x, y, slope_threshold, second_derivative_threshold):
         '''
         Identify constant slope regions in a given dataset.
