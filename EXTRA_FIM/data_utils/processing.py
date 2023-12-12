@@ -17,12 +17,13 @@ class ProcessingFIM():
         plot_fim_image(image): Plot the simulated image (output of FIM_image).
     '''
     
-    def __init__(self, FIM_simulations,repeat):
+    def __init__(self, FIM_simulations,repeat, path):
         self.fim_simulation = FIM_simulations
         self.repeat = repeat
+        self.path = path
    
     @property
-    def FIM_image(self, path=None):
+    def FIM_image(self):
         '''returns a FIM image based on the input_dict, which has the simulation parameters used to do the actual FIM simulation job, path is the path to the FIM simulation job and repeat is the number of times xy plane should be repeated.'''
         all_totals = dict ()
         rec_cell = np.linalg.inv(self.fim_simulation.cell) * 2 * np.pi # get cell coordinates from potential file
@@ -30,7 +31,7 @@ class ProcessingFIM():
         gk_2 = np.outer(np.fft.fftfreq(self.fim_simulation.Ny, 1 / self.fim_simulation.Ny), rec_cell[1])
         for ik in range(self.fim_simulation.wf.nk):
             for ispin in range(self.fim_simulation.wf.n_spin):
-                with h5py.File(f'{path}/partial_dos{ik}.h5', 'r') as handle:
+                with h5py.File(f'{self.path}/partial_dos{ik}.h5', 'r') as handle:
                     for varname in handle.keys ():
                         if 'IE=' in varname:
                             IE = float(str(varname).replace('IE=',''))
