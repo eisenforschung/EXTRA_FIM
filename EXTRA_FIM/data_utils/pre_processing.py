@@ -99,8 +99,8 @@ class PreProcessingFIM():
         # Plot the data and highlight the constant slope regions
         fig, ax = plt.subplots(figsize=[6.5, 4])
         ax.plot(z, elec_potential, label='Original Data')
-        ax.scatter(x[Simulator['izstart_min']], y[Simulator['izstart_min']], color='green', label='Izstart')
-        ax.scatter(x[Simulator['izend']], y[Simulator['izend']], color='red', label='Izend')
+        ax.scatter(elec_potential[Simulator['izstart_min']], z[Simulator['izstart_min']], color='green', label='Izstart')
+        ax.scatter(elec_potential[Simulator['izend']], z[Simulator['izend']], color='red', label='Izend')
         ax.axhline(Simulator['E_fermi']+Simulator['ionization_energies'],ls='--')
         ax.axhline(Simulator['E_max']+Simulator['ionization_energies'],ls='--')
         ax.set_xlabel('z, ($\AA$)')
