@@ -40,8 +40,8 @@ class PreProcessingFIM():
     def suggest_input_dictionary(self, slope_threshold = 0.1 ,second_derivative_threshold = 0.001 ):
         Simulator = {
             'working_directory': self.job.working_directory,
-            'z_max': 42,
-            'izstart_min': Non,
+            'z_max': None,
+            'izstart_min': None,
             'izend': None,
             'cutoff': 10,
             'limit': 1e-6,
