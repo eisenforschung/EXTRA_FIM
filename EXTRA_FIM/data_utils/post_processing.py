@@ -11,6 +11,7 @@ class ProcessingFIM():
     Attributes:
         fim_simulation (FIM_simulations): An instance of the FIM_simulations.
         repeat: repeat the cell in xy (int)
+        path: fim simulation job's path
         
     Methods:
         FIM_image(psi): create a FIM image based on fim_simulation_job.
