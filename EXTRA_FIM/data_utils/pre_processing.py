@@ -92,7 +92,7 @@ class PreProcessingFIM():
         elec_potential = V_relax.get_average_along_axis(ind=2)
         z = np.linspace(cell[0,2],cell[2,2],V_relax.total_data.shape[2])  
         # Find start and end indices of constant slope regions with additional filter
-        zmax,izend, izstart = find_constant_slope_regions(elec_potential, z, slope_threshold, second_derivative_threshold)
+        zmax,izend, izstart = self.find_constant_slope_regions(elec_potential, z, slope_threshold, second_derivative_threshold)
         Simulator['izstart_min'] = izstart
         Simulator['izend'] = izend
         Simulator['zmax'] = z[zmax]/(scipy.constants.physical_constants["Bohr radius"][0] * 1e+10)
