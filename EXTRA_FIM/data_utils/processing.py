@@ -54,7 +54,7 @@ class ProcessingFIM():
 
         return FIM_image_case
 
-    def plot_fim_image(self, fim_image):
+    def plot_fim_image(self, fim_image=None, scatter_atoms =False, height = None, slab_structure =None):
         '''fim_image output of the FIM_image function. Automatically creates levels and gives a matplotlib figure.'''
         vmax=np.max(fim_image.real)
         vmax_lev=np.power(10., np.trunc(np.log10(vmax))-1)
@@ -67,5 +67,36 @@ class ProcessingFIM():
         plt.rcParams['font.family'] ='serif'
         plt.xlabel('x ($\AA$)')
         plt.ylabel('y ($\AA$)')
+        if scatter_atoms:
+            plt.scatter(slab_structure.positions[slab_structure.positions[:,2]>height,0],slab_structure.positions[slab_structure.positions[:,2]>height,1],c=slab_structure.get_atomic_numbers()[slab_structure.positions[:,2]>height],cmap='rainbow',edgecolors='k',s=50)
         plt.colorbar()
+        return fig
+
+
+    def plot_fim_image_new(self, fim_image=None, **kwargs):
+        '''Plot FIM image.'''
+        if fim_image is None:
+            raise ValueError("fim_image must be provided.")
+
+        vmax = np.max(fim_image.real)
+        vmax_lev = np.power(10., np.trunc(np.log10(vmax)) - 1)
+        vmax_lev = (np.trunc(vmax / vmax_lev * 10.) + 1) * 0.1 * vmax_lev
+
+        xp = np.linspace(0, self.fim_simulation.cell[0, 0] * self.repeat, self.fim_simulation.Nx)
+        yp = np.linspace(0, self.fim_simulation.cell[1, 1] * self.repeat, self.fim_simulation.Ny)
+
+        fig, ax = plt.subplots(figsize=[6.5, 4])
+        ax.set_xlabel('x ($\AA$)')
+        ax.set_ylabel('y ($\AA$)')
+        contour = ax.contourf(xp / 1.89, yp / 1.89, fim_image.real.T, vmin=0, vmax=vmax_lev, levels=np.linspace(0, vmax_lev, 41))
+        fig.colorbar(contour, ax=ax)
+        if kwargs.get('scatter_atoms', False):
+            height = kwargs.get('height', 12.8)
+            slab_structure = kwargs.get('slab_structure', None)
+
+            if slab_structure is not None:
+                scatter_mask = slab_structure.positions[:, 2] > height
+                ax.scatter(slab_structure.positions[scatter_mask, 0], slab_structure.positions[scatter_mask, 1],
+                           c=slab_structure.get_atomic_numbers()[scatter_mask], cmap='rainbow', edgecolors='k', s=50)
+
         return fig
