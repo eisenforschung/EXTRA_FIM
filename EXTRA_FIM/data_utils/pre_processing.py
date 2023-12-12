@@ -7,20 +7,47 @@ import scipy
 class PreProcessingFIM():
     '''
     Class for giving a suggested set of parameters for FIM simulation
-    
-    Attributes:
 
-        
+    Attributes:
+        job (str): Job information.
+        imaging_gas (mendeleev.Element): Imaging gas element.
+
     Methods:
+        find_constant_slope_regions(x, y, slope_threshold, second_derivative_threshold):
+            Identify constant slope regions in a given dataset.
+
+        suggest_input_dictionary(slope_threshold=0.1, second_derivative_threshold=0.001):
+            Suggest a dictionary of input parameters for FIM simulation.
 
     '''
     
     def __init__(self, job=None,imaging_gas=None):
+        '''
+        Initialize PreProcessingFIM object.
+
+        Parameters:
+            job (str): Job information.
+            imaging_gas (str): Symbol of the imaging gas element.
+
+        '''
         self.job = job
         self.imaging_gas = element(imaging_gas)
    
-   @static_method
+   @staticmethod
     def find_constant_slope_regions(x, y, slope_threshold, second_derivative_threshold):
+        '''
+        Identify constant slope regions in a given dataset.
+
+        Parameters:
+            x (numpy.ndarray): x-coordinates.
+            y (numpy.ndarray): y-coordinates.
+            slope_threshold (float): Threshold for slope difference.
+            second_derivative_threshold (float): Threshold for the second derivative.
+
+        Returns:
+            tuple: Indices of start and end points of constant slope regions.
+
+        '''
         # Compute the first and second derivatives of y with respect to x
         dy_dx = np.gradient(y, x)
         d2y_dx2 = np.gradient(dy_dx, x)
@@ -38,6 +65,17 @@ class PreProcessingFIM():
         return end_indices+5, start_indices, end_indices
 
     def suggest_input_dictionary(self, slope_threshold = 0.1 ,second_derivative_threshold = 0.001 ):
+        '''
+        Suggest a dictionary of input parameters for FIM simulation.
+
+        Parameters:
+            slope_threshold (float): Threshold for slope difference.
+            second_derivative_threshold (float): Threshold for the second derivative.
+
+        Returns:
+            tuple: Figure object and suggested simulator parameters.
+
+        '''
         Simulator = {
             'working_directory': self.job.working_directory,
             'z_max': None,
