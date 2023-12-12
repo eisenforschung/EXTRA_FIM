@@ -97,15 +97,15 @@ class PreProcessingFIM():
         Simulator['izend'] = izend
         Simulator['zmax'] = z[zmax]/(scipy.constants.physical_constants["Bohr radius"][0] * 1e+10)
         # Plot the data and highlight the constant slope regions
-        fig = plt.figure(figSize=[7,7])
-        plt.plot(z, elec_potential, label='Original Data')
-        plt.scatter(x[Simulator['izstart_min']], y[Simulator['izstart_min']], color='green', label='Izstart')
-        plt.scatter(x[Simulator['izend']], y[Simulator['izend']], color='red', label='Izend')
-        plt.axhline(Simulator['E_fermi']+Simulator['ionization_energies'],ls='--')
-        plt.axhline(Simulator['E_max']+Simulator['ionization_energies'],ls='--')
-        plt.xlabel('z, ($\AA$)')
-        plt.ylabel('Electrostatic potential, (eV)')
-        plt.legend()
+        fig, ax = plt.subplots(figsize=[6.5, 4])
+        ax.plot(z, elec_potential, label='Original Data')
+        ax.scatter(x[Simulator['izstart_min']], y[Simulator['izstart_min']], color='green', label='Izstart')
+        ax.scatter(x[Simulator['izend']], y[Simulator['izend']], color='red', label='Izend')
+        ax.axhline(Simulator['E_fermi']+Simulator['ionization_energies'],ls='--')
+        ax.axhline(Simulator['E_max']+Simulator['ionization_energies'],ls='--')
+        ax.set_xlabel('z, ($\AA$)')
+        ax.set_ylabel('Electrostatic potential, (eV)')
+        ax.legend()
 
         return fig, Simulator
         
