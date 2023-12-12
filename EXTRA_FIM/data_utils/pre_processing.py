@@ -60,7 +60,7 @@ class PreProcessingFIM():
 
         # Identify start and end indices of constant slope regions
         start_indices = constant_slope_indices[0]+5
-        end_indices = constant_slope_indices[np.where(np.diff(constant_slope_indices) > 1)[0]]-5
+        end_indices = constant_slope_indices[np.where(np.diff(constant_slope_indices) > 1)[0][0]] - 5
 
         return end_indices+5, start_indices, end_indices
 
@@ -93,9 +93,9 @@ class PreProcessingFIM():
         z = np.linspace(cell[0,2],cell[2,2],V_relax.total_data.shape[2])  
         # Find start and end indices of constant slope regions with additional filter
         zmax,izend, izstart = self.find_constant_slope_regions(z,elec_potential, slope_threshold, second_derivative_threshold)
-        Simulator['izstart_min'] = izstart[0]
-        Simulator['izend'] = izend[0]
-        Simulator['z_max'] = (z[zmax]/(scipy.constants.physical_constants["Bohr radius"][0] * 1e+10))[0]
+        Simulator['izstart_min'] = izstart
+        Simulator['izend'] = izend
+        Simulator['z_max'] = (z[zmax]/(scipy.constants.physical_constants["Bohr radius"][0] * 1e+10))
         # Plot the data and highlight the constant slope regions
         fig, ax = plt.subplots(figsize=[6.5, 4])
         ax.plot(z, elec_potential, label='Original Data')
