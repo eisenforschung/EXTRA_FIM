@@ -95,12 +95,12 @@ class PreProcessingFIM():
         zmax,izend, izstart = self.find_constant_slope_regions(z,elec_potential, slope_threshold, second_derivative_threshold)
         Simulator['izstart_min'] = izstart
         Simulator['izend'] = izend
-        Simulator['zmax'] = z[zmax]*(scipy.constants.physical_constants["Bohr radius"][0] * 1e+10)
+        Simulator['z_max'] = z[zmax]*(scipy.constants.physical_constants["Bohr radius"][0] * 1e+10)
         # Plot the data and highlight the constant slope regions
         fig, ax = plt.subplots(figsize=[6.5, 4])
         ax.plot(z, elec_potential, label='Original Data')
-        ax.scatter(elec_potential[Simulator['izstart_min']], z[Simulator['izstart_min']], color='green', label='Izstart')
-        ax.scatter(elec_potential[Simulator['izend']], z[Simulator['izend']], color='red', label='Izend')
+        ax.scatter(z[Simulator['izstart_min']], elec_potential[Simulator['izstart_min']], color='green', label='Izstart')
+        ax.scatter(z[Simulator['izend']], elec_potential[Simulator['izend']], color='red', label='Izend')
         ax.axvline(Simulator['z_max'],ls='--')
         ax.axhline(Simulator['E_fermi']+Simulator['ionization_energies'],ls='--')
         ax.axhline(Simulator['E_max']+Simulator['ionization_energies'],ls='--')
