@@ -1,5 +1,4 @@
 import numpy as np
-from EXTRA_FIM import main as fim
 import matplotlib.pyplot as plt
 from mendeleev import element
 import scipy
@@ -104,10 +103,9 @@ class PreProcessingFIM():
         ax.axvline(Simulator['z_max']*(scipy.constants.physical_constants["Bohr radius"][0]* 1e+10),ls='--')
         ax.axhline(Simulator['E_fermi']+Simulator['ionization_energies'],ls='--')
         ax.axhline(Simulator['E_max']+Simulator['ionization_energies'],ls='--')
-        ax.set_xlabel('z, ($\AA$)')
+        ax.set_xlabel(r"z, ($\AA$)")
         ax.set_ylabel('Electrostatic potential, (eV)')
         ax.legend()
 
         return fig, Simulator
         
-

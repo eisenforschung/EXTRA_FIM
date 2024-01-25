@@ -1,1 +1,1 @@
-__package__ = ''
+__all__ =["main"]
