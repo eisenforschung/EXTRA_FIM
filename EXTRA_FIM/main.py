@@ -414,6 +414,7 @@ class FIM_simulations():
         for ik in range(0, self.wf.nk):
             sum_single_k(ik)
             
+            
     def sum_single_k(self,ik):
         ''' compute partial fim image for several ionization energies for all eigenstates between Efermi
         and Emax for one k point (ik). Save the partial dos files '''
