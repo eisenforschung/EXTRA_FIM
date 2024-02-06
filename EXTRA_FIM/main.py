@@ -341,35 +341,46 @@ class extra_waves():
         self.inputDict = inputDict
         self.dft_wv = sx_waves_reader(inputDict,fname='waves.sxb')
         pot= potential(inputDict)
-        self.total_V, self.V1,self.h,self.cell = pot.potential_cell()
+        self.total_V, _ ,self.dz,cell = pot.potential_cell()
+        rec_cell = np.linalg.inv(cell) * 2 * np.pi # get cell coordinates from potential file
+
+        self.gk_1 = np.outer(np.fft.fftfreq(self.Nx, 1 / self.Nx), rec_cell[0])
+        self.gk_2 = np.outer(np.fft.fftfreq(self.Ny, 1 / self.Ny), rec_cell[1])
+        
+    @property
+    def Nx(self):
+        return self.total_V.shape[0]
+    @property
+    def Ny(self):
+        return self.total_V.shape[1]
 
     def get_psi(self,i,ispin,ik):
         ''' compute EXTRA wavefunctions of given i ,ispin,ik
         provides real space psi on the mesh of potential
         '''
-        self.Nx = self.total_V.shape[0]
-        self.Ny = self.total_V.shape[1]
-        rec_cell = np.linalg.inv(self.cell) * 2 * np.pi # get cell coordinates from potential file
-
-        gk_1 = np.outer(np.fft.fftfreq(self.Nx, 1 / self.Nx), rec_cell[0])
-        gk_2 = np.outer(np.fft.fftfreq(self.Ny, 1 / self.Ny), rec_cell[1])
         psi = self.dft_wv.get_psi_rec(i, ispin, ik)
         psi_real = np.fft.ifftn(psi)
 
         psi_match = np.fft.ifft2(psi_real[:, :, self.inputDict['izend']])
-        nrm_psi = np.linalg.norm(psi_match) # needs to be figured out
+        #nrm_psi = np.linalg.norm(psi_match) # needs to be figured out
         nrm_psi = 1e4
         psi_match_1 = psi_match / nrm_psi
-        residual = Residual_extra(self.total_V[:, :, :int(self.inputDict['z_max']/self.h),ispin], self.h, self.inputDict['izend'], self.dft_wv.eps[ik, ispin, i],
+
+        izmax = int(self.inputDict['z_max']/self.dz)
+        residual = Residual_extra(self.total_V[:, :, :izmax,ispin],
+                                  self.dz, self.inputDict['izend'],
+                                  self.dft_wv.eps[ik, ispin, i],
                                   psi_match_1)
 
-        istart_list = residual.iso_contour(gk_1, gk_2, self.dft_wv.k_vec[ik, :],
-                                           self.inputDict['cutoff'],self.inputDict['izstart_min'], self.inputDict['limit'])
+        istart_list = residual.iso_contour(self.gk_1, self.gk_2, self.dft_wv.k_vec[ik,:],
+                                           self.inputDict['cutoff'],
+                                           self.inputDict['izstart_min'],
+                                           self.inputDict['limit'])
 
         sol = scipy.optimize.root(residual, np.zeros([self.Nx, self.Ny], dtype=np.complex128), method='Krylov')
         residual.psi_g_real *= nrm_psi
         psi_extra=residual.psi_g_real
-        return psi_real,psi_extra,gk_1,gk_2
+        return psi_real,psi_extra
 
 class FIM_simulations():
     HARTREE_TO_EV = scipy.constants.physical_constants["Hartree energy in eV"][0]
@@ -391,10 +402,17 @@ class FIM_simulations():
         self.extra = extra_waves(inputDict)
         self.wf = sx_waves_reader(inputDict,fname='waves.sxb')
         pot= potential(inputDict)
-        self.total_V, self.V1,self.h,self.cell = pot.potential_cell()
-        self.Nx = self.total_V.shape[0]
-        self.Ny = self.total_V.shape[1]
-        self.Nz = self.total_V.shape[2]
+        self.total_V, _ ,self.dz,self.cell = pot.potential_cell()
+
+    @property
+    def Nx(self):
+        return self.total_V.shape[0]
+    @property
+    def Ny(self):
+        return self.total_V.shape[1]
+    @property
+    def Nz(self):
+        return self.total_V.shape[2]
        
 
     def search_V(self, V_target, V):
@@ -406,8 +424,6 @@ class FIM_simulations():
                 return iz-lamda
         raise ValueError('V_target='+str(V_target)+'not found')
 
-
-
     def sum_all_states(self):
         ''' compute partial fim image for several ionization energies for all eigenstates between Efermi
         and Emax for all k points. Save the partial dos files '''
@@ -418,46 +434,48 @@ class FIM_simulations():
     def sum_single_k(self,ik):
         ''' compute partial fim image for several ionization energies for all eigenstates between Efermi
         and Emax for one k point (ik). Save the partial dos files '''
+
+        # --- initialize the FIM sum arrays
         all_totals_dft = dict()
         all_totals_extra = dict()
         z_resolved=dict()
-        self.Nx = self.total_V.shape[0]
-        self.Ny = self.total_V.shape[1]
-        self.Nz = self.total_V.shape[2]
         for IE in self.inputDict['ionization_energies']:
-            all_totals_dft[IE] = np.zeros((self.Nx, self.Ny), dtype=np.float64)
+            #all_totals_dft[IE] = np.zeros((self.Nx, self.Ny), dtype=np.float64)
             all_totals_extra[IE] = np.zeros((self.Nx, self.Ny), dtype=np.float64)
-
             z_resolved[IE] = np.zeros((self.Nx, self.Ny, self.Nz), dtype=np.float64)
 
-
-        filename = f'partial_dos{ik}.h5'
+        # --- loop over states/spins
         for i in range(0, self.wf.n_states):
             for ispin in range(self.wf.n_spin):
+                # --- select states in energy range E_fermi ... E_max
                 if self.wf.eps[ik, ispin, i] < self.inputDict['E_fermi'] / self.HARTREE_TO_EV:
                     continue
                 if self.wf.eps[ik, ispin, i] > self.inputDict['E_max'] / self.HARTREE_TO_EV:
                     continue
-                psi_real,psi_extra,_,_ = self.extra.get_psi(i,ispin,ik)
+
+                # get wave function
+                psi_dft,psi_extra = self.extra.get_psi(i,ispin,ik)
                 for IE in self.inputDict['ionization_energies']:
 
                     V_target = self.wf.eps[ik, ispin, i]+ (IE / self.HARTREE_TO_EV) 
-                    V1 = np.einsum('ijk->k', self.total_V[:,:,:,ispin]) / self.total_V.shape[1] / self.total_V.shape[0]
+                    V1 = np.einsum('ijk->k', self.total_V[:,:,:,ispin]) / (self.Nx * self.Ny)
                     z_plot = self.search_V(V_target, V1)  # floating point number
                     iz_plot = int(z_plot)  # getting integer part of it
                     lamda = z_plot - iz_plot
 
 
                     # linear interpolation of partial dos
-                    partial_dos_dft = (1 - lamda) * np.abs(psi_real[:, :, iz_plot]) ** 2 \
-                                     + lamda * np.abs(psi_real[:, :, iz_plot + 1]) ** 2
+                    #partial_dos_dft = (1 - lamda) * np.abs(psi_dft[:, :, iz_plot]) ** 2 \
+                    #                 + lamda * np.abs(psi_dft[:, :, iz_plot + 1]) ** 2
                     partial_dos_extra = (1 - lamda) * np.abs(psi_extra[:, :, iz_plot]) ** 2 \
                                       + lamda * np.abs(psi_extra[:, :, iz_plot + 1]) ** 2
 
-                    all_totals_dft[IE] += self.wf.k_weights[ik] * partial_dos_dft
+                    #all_totals_dft[IE] += self.wf.k_weights[ik] * partial_dos_dft
                     all_totals_extra[IE] += self.wf.k_weights[ik] * partial_dos_extra
                     z_resolved[IE][:,:,iz_plot] += self.wf.k_weights[ik] * partial_dos_extra
 
+        # --- write output file
+        filename = f'partial_dos{ik}.h5'
         with h5py.File(filename, 'w') as handle:
             handle.create_dataset('ionization_energies',
                                   data=self.inputDict['ionization_energies'])
