@@ -5,6 +5,7 @@ import scipy
 import netCDF4
 import scipy.optimize
 import os.path
+from EXTRA_FIM.waves_reader_abc import waves_reader_abc
 
 
 __author__ = "Shalini Bhatt"
@@ -15,6 +16,9 @@ __copyright__ = (
 __maintainer__ = "Shalini Bhatt"
 __email__ = "s.bhatt@mpie.de"
 __date__ = " April 26, 2023"
+
+HARTREE_TO_EV = scipy.constants.physical_constants["Hartree energy in eV"][0]
+
 
 # class of 1D Numerov
 class numerov_1D():
@@ -213,15 +217,13 @@ class Residual_extra(numerov_1D):
 
 class potential():
 
-    HARTREE_TO_EV = scipy.constants.physical_constants["Hartree energy in eV"][0]
-    BOHR_TO_Angstrom = scipy.constants.physical_constants["Bohr radius"][0] * 1e+10
     def __init__(self,inputDict):
         self.working_directory=inputDict['working_directory']
 
     def potential_cell(self):
         v_file = netCDF4.Dataset(self.working_directory + "/vElStat-eV.sxb")
         Potential = np.asarray(v_file['mesh']).reshape(v_file['dim'])
-        Potential = Potential / self.HARTREE_TO_EV
+        Potential = Potential / HARTREE_TO_EV
         vxc_file = netCDF4.Dataset(self.working_directory + "/vXC.sxb")
        
         if 'mesh' in vxc_file.variables:
@@ -334,12 +336,50 @@ class sx_waves_reader():
         self._check_loaded ()
         return self.k_weights.shape[0]
     
+    def get_eps(self, i, ispin, ik):
+        """ Get eigenvalue (in eV) for state i, spin ispin, k-point ik
+        """
+        return self._eps[ik, ispin, i] * HARTREE_TO_EV
+
+    def get_kvec(self, ik):
+        """ Get k-vector for k-point ik
+
+            Returns numpy 3-vector in inverse atomic units
+        """
+        return self.k_vec[ik,:]
+
+    def get_psi(self, i, ispin, ik):
+        """ Get wave function for state i, spin ispin, k-point ik
+
+            Wave function is returned in real space on the (Nx,Ny,Nz) mesh
+        """
+        return np.fft.ifftn(self.get_psi_rec(i,ispin,ik))
+
+    def kweight(self, ik):
+        """ Get integration weight for k-point ik
+        """
+        return self.k_weights[ik]
+
+
 
 class extra_waves():
 
-    def __init__(self,inputDict):
+    def __init__(self,inputDict,reader=None):
         self.inputDict = inputDict
-        self.dft_wv = sx_waves_reader(inputDict,fname='waves.sxb')
+        if reader is None:
+            self.dft_wv = sx_waves_reader(inputDict,fname='waves.sxb')
+        else:
+            self.dft_wv = reader
+            # check that reader has the required signature
+            if not isinstance(reader, waves_reader_abc):
+                missing= [ m for m in waves_reader_abc.__abstractmethods__
+                                      if not hasattr(reader,m) ]
+                if len(missing) > 0:
+                    error=TypeError('Incomplete reader object')
+                    for method in missing:
+                        error.add_note (f"Missing '{method}'")
+                    raise error
+
         pot= potential(inputDict)
         self.total_V, _ ,self.dz,cell = pot.potential_cell()
         rec_cell = np.linalg.inv(cell) * 2 * np.pi # get cell coordinates from potential file
@@ -358,8 +398,7 @@ class extra_waves():
         ''' compute EXTRA wavefunctions of given i ,ispin,ik
         provides real space psi on the mesh of potential
         '''
-        psi = self.dft_wv.get_psi_rec(i, ispin, ik)
-        psi_real = np.fft.ifftn(psi)
+        psi_real = self.dft_wv.get_psi(i, ispin, ik)
 
         psi_match = np.fft.ifft2(psi_real[:, :, self.inputDict['izend']])
         #nrm_psi = np.linalg.norm(psi_match) # needs to be figured out
@@ -369,10 +408,10 @@ class extra_waves():
         izmax = int(self.inputDict['z_max']/self.dz)
         residual = Residual_extra(self.total_V[:, :, :izmax,ispin],
                                   self.dz, self.inputDict['izend'],
-                                  self.dft_wv.eps[ik, ispin, i],
+                                  self.dft_wv.get_eps(i, ispin, ik) / HARTREE_TO_EV,
                                   psi_match_1)
 
-        istart_list = residual.iso_contour(self.gk_1, self.gk_2, self.dft_wv.k_vec[ik,:],
+        istart_list = residual.iso_contour(self.gk_1, self.gk_2, self.dft_wv.get_kvec(ik),
                                            self.inputDict['cutoff'],
                                            self.inputDict['izstart_min'],
                                            self.inputDict['limit'])
@@ -383,8 +422,6 @@ class extra_waves():
         return psi_real,psi_extra
 
 class FIM_simulations():
-    HARTREE_TO_EV = scipy.constants.physical_constants["Hartree energy in eV"][0]
-    BOHR_TO_Angstrom = scipy.constants.physical_constants["Bohr radius"][0] * 1e+10
     # Simulator = {
     #         'working_directory': 'working directory',
     #         'ik': 'ik',
@@ -397,12 +434,15 @@ class FIM_simulations():
     #         'E_max': 'E_max',
     #         'ionization_energies': 'ionization_energies'
     # }
-    def __init__(self,inputDict):
+    def __init__(self,inputDict,reader=None):
         self.inputDict = inputDict
-        self.extra = extra_waves(inputDict)
-        self.wf = sx_waves_reader(inputDict,fname='waves.sxb')
+        self.extra = extra_waves(inputDict,reader=reader)
+        self.wf = self.extra.dft_wv
+
         pot= potential(inputDict)
         self.total_V, _ ,self.dz,self.cell = pot.potential_cell()
+        # note: potential for this class must be in eV
+        self.total_V *= HARTREE_TO_EV
 
     @property
     def Nx(self):
@@ -448,16 +488,16 @@ class FIM_simulations():
         for i in range(0, self.wf.n_states):
             for ispin in range(self.wf.n_spin):
                 # --- select states in energy range E_fermi ... E_max
-                if self.wf.eps[ik, ispin, i] < self.inputDict['E_fermi'] / self.HARTREE_TO_EV:
+                if self.wf.get_eps(i, ispin, ik) < self.inputDict['E_fermi']:
                     continue
-                if self.wf.eps[ik, ispin, i] > self.inputDict['E_max'] / self.HARTREE_TO_EV:
+                if self.wf.get_eps(i, ispin, ik) > self.inputDict['E_max']:
                     continue
 
                 # get wave function
                 psi_dft,psi_extra = self.extra.get_psi(i,ispin,ik)
                 for IE in self.inputDict['ionization_energies']:
 
-                    V_target = self.wf.eps[ik, ispin, i]+ (IE / self.HARTREE_TO_EV) 
+                    V_target = self.wf.get_eps(i, ispin, ik) + IE
                     V1 = np.einsum('ijk->k', self.total_V[:,:,:,ispin]) / (self.Nx * self.Ny)
                     z_plot = self.search_V(V_target, V1)  # floating point number
                     iz_plot = int(z_plot)  # getting integer part of it
@@ -470,9 +510,9 @@ class FIM_simulations():
                     partial_dos_extra = (1 - lamda) * np.abs(psi_extra[:, :, iz_plot]) ** 2 \
                                       + lamda * np.abs(psi_extra[:, :, iz_plot + 1]) ** 2
 
-                    #all_totals_dft[IE] += self.wf.k_weights[ik] * partial_dos_dft
-                    all_totals_extra[IE] += self.wf.k_weights[ik] * partial_dos_extra
-                    z_resolved[IE][:,:,iz_plot] += self.wf.k_weights[ik] * partial_dos_extra
+                    #all_totals_dft[IE]          += self.wf.kweight(ik) * partial_dos_dft
+                    all_totals_extra[IE]        += self.wf.kweight(ik) * partial_dos_extra
+                    z_resolved[IE][:,:,iz_plot] += self.wf.kweight(ik) * partial_dos_extra
 
         # --- write output file
         filename = f'partial_dos{ik}.h5'
