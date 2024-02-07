@@ -329,13 +329,13 @@ class sx_waves_reader():
         psiim=self.wfile[f"psi-{ik+1}.im"][off:off+self._n_gk[ik]]
         self._fillin(res,psire,psiim,self._fft_idx[ik])
         return res
-    
+
     @property
     def nk(self):
         """Number of k-points"""
         self._check_loaded ()
         return self.k_weights.shape[0]
-    
+
     def get_eps(self, i, ispin, ik):
         """ Get eigenvalue (in eV) for state i, spin ispin, k-point ik
         """
@@ -360,11 +360,17 @@ class sx_waves_reader():
         """
         return self.k_weights[ik]
 
+    @property
+    def cell(self):
+        """ Get simulation cell (in bohr units)
+        """
+        return np.asarray(self.nc_wf['cell'])
+
 
 
 class extra_waves():
 
-    def __init__(self,inputDict,reader=None):
+    def __init__(self,inputDict, reader=None, pot=None):
         self.inputDict = inputDict
         if reader is None:
             self.dft_wv = sx_waves_reader(inputDict,fname='waves.sxb')
@@ -380,13 +386,19 @@ class extra_waves():
                         error.add_note (f"Missing '{method}'")
                     raise error
 
-        pot= potential(inputDict)
-        self.total_V, _ ,self.dz,cell = pot.potential_cell()
+        if (pot is None):
+            self.total_V, _ ,self.dz,cell = potential(inputDict).potential_cell()
+        else:
+            self.total_V = pot
+            cell = self.dft_wv.cell
+            _, self.dz = np.linspace(0, cell[2,2], self.dft_wv.mesh[2], retstep=True)
         rec_cell = np.linalg.inv(cell) * 2 * np.pi # get cell coordinates from potential file
 
         self.gk_1 = np.outer(np.fft.fftfreq(self.Nx, 1 / self.Nx), rec_cell[0])
         self.gk_2 = np.outer(np.fft.fftfreq(self.Ny, 1 / self.Ny), rec_cell[1])
-        
+
+        self.Nz = int(self.inputDict['z_max']/self.dz)
+
     @property
     def Nx(self):
         return self.total_V.shape[0]
@@ -405,8 +417,7 @@ class extra_waves():
         nrm_psi = 1e4
         psi_match_1 = psi_match / nrm_psi
 
-        izmax = int(self.inputDict['z_max']/self.dz)
-        residual = Residual_extra(self.total_V[:, :, :izmax,ispin],
+        residual = Residual_extra(self.total_V[:, :, :self.Nz,ispin],
                                   self.dz, self.inputDict['izend'],
                                   self.dft_wv.get_eps(i, ispin, ik) / HARTREE_TO_EV,
                                   psi_match_1)
@@ -434,25 +445,34 @@ class FIM_simulations():
     #         'E_max': 'E_max',
     #         'ionization_energies': 'ionization_energies'
     # }
-    def __init__(self,inputDict,reader=None):
+    def __init__(self,inputDict,reader=None,V_total=None,V_elstat=None):
+        """ Parameters:
+               inputDict   input dictionary with all settings
+               reader      DFT wave function reader (must be derived from or
+                           compatible to EXTRA_FIM.wave_reader_abc)
+               V_total     effective potential for tail extrapolation (in Hartree)
+               V_elstat    electrostatic potential for determining
+                           the ionization position (in eV)
+        """
         self.inputDict = inputDict
-        self.extra = extra_waves(inputDict,reader=reader)
+        self.extra = extra_waves(inputDict,reader=reader, pot=V_total)
         self.wf = self.extra.dft_wv
 
-        pot= potential(inputDict)
-        self.total_V, _ ,self.dz,self.cell = pot.potential_cell()
-        # note: potential for this class must be in eV
-        self.total_V *= HARTREE_TO_EV
+        if (V_elstat is None):
+            # note: potential for this class must be in eV
+            self.V_elstat = self.extra.total_V * HARTREE_TO_EV
+        else:
+            self.V_elstat = V_elstat
 
     @property
     def Nx(self):
-        return self.total_V.shape[0]
+        return self.extra.Nx
     @property
     def Ny(self):
-        return self.total_V.shape[1]
+        return self.extra.Ny
     @property
     def Nz(self):
-        return self.total_V.shape[2]
+        return self.extra.Nz
        
 
     def search_V(self, V_target, V):

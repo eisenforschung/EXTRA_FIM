@@ -5,20 +5,20 @@ import numpy as np
 
 class sx_nc_waves_reader(waves_reader_abc):
     """ This is the wave function reader for netcdf wave function files from SPHInX
-            
+
     """
-    
+
     HARTREE_TO_EV = scipy.constants.physical_constants["Hartree energy in eV"][0]
     def __init__(self,waves_file):
         """ Constructor
-        
+
             waves_file ... name of file (waves.sxb netcdf format)
         """
         self.nc_wf = netCDF4.Dataset(waves_file)
-  
+
         # read dimensions
         self._nspin = len(self.nc_wf.dimensions['nSpin'])
-        
+
         # read small arrays
         self._nstates = int(self.nc_wf['nPerK'][0])
         self._mesh = np.asarray(self.nc_wf['meshDim'])
@@ -26,22 +26,22 @@ class sx_nc_waves_reader(waves_reader_abc):
         self.k_vec = np.asarray(self.nc_wf['kVec'])
         self._n_gk = np.asarray(self.nc_wf['nGk'])
         self._eps = np.asarray(self.nc_wf['eps']).reshape (self.nk,self._nspin,self._nstates)
-        
+
         # load mapping from compact storage to FFT mesh
         self._fft_idx = []
         off = 0
         for ngk in self._n_gk:
             self._fft_idx.append(self.nc_wf["fftIdx"][off : off + ngk])
             off += ngk
-        
-    
+
+
     def get_psi(self, i, ispin, ik):
-        """ Get wave function for state i, spin ispin, k-point ik 
-        
+        """ Get wave function for state i, spin ispin, k-point ik
+
             Wave function is returned in real space on the (Nx,Ny,Nz) mesh
         """
         return np.fft.ifftn(self.get_psi_rec(i,ispin,ik))
-    
+
     def get_psi_rec(self, i, ispin, ik, compact=False):
         """
         Loads a single wavefunction on full FFT mesh of shape mesh.
@@ -72,25 +72,25 @@ class sx_nc_waves_reader(waves_reader_abc):
         """ Get eigenvalue (in eV) for state i, spin ispin, k-point ik
         """
         return self._eps[ik, ispin, i] * self.HARTREE_TO_EV
-    
+
     def kweight(self, ik):
         """ Get integration weight for k-point ik
         """
         return self.k_weights[ik]
-    
+
     def get_kvec(self, ik):
         """ Get k-vector for k-point ik
-        
+
             Returns numpy 3-vector in inverse atomic units
         """
         return -self.k_vec[ik,:]
-    
+
     @property
     def nk(self):
         """ Get number of k-points
         """
         return len(self.k_weights)
-    
+
     @property
     def n_spin(self):
         """ Get number of spin channels
@@ -108,3 +108,9 @@ class sx_nc_waves_reader(waves_reader_abc):
         """ Get (Nx, Ny, Nz)
         """
         return self._mesh[0], self._mesh[1], self._mesh[2]
+
+    @property
+    def cell(self):
+        """ Get simulation cell (in bohr units)
+        """
+        return np.asarray(self.nc_wf['cell'])
