@@ -381,10 +381,9 @@ class extra_waves():
                 missing= [ m for m in waves_reader_abc.__abstractmethods__
                                       if not hasattr(reader,m) ]
                 if len(missing) > 0:
-                    error=TypeError('Incomplete reader object')
-                    for method in missing:
-                        error.add_note (f"Missing '{method}'")
-                    raise error
+                    raise TypeError('Incomplete reader object\n'
+                                   + str("\n").join ([f"Missing '{m}'" for m in missing])
+                                   )
 
         if (pot is None):
             self.total_V, _ ,self.dz,cell = potential(inputDict).potential_cell()
@@ -505,8 +504,22 @@ class FIM_simulations():
             z_resolved[IE] = np.zeros((self.Nx, self.Ny, self.Nz), dtype=np.float64)
 
         # --- loop over states/spins
-        for i in range(0, self.wf.n_states):
-            for ispin in range(self.wf.n_spin):
+        for ispin in range(self.wf.n_spin):
+
+            # --- determine V1 for ionization location
+            dim_elstat = len(self.V_elstat.shape)
+            if dim_elstat == 1:
+                V1 = self.V_elstat
+            elif dim_elstat == 2:
+                V1 = self.V_elstat[:,ispin]
+            elif dim_elstat == 3:
+                # TODO do search_V for each ix,iy
+                V1 = np.einsum('ijk->k', self.V_elstat) / np.prod(self.V_elstat.shape[0:2])
+            elif dim_elstat == 4:
+                # TODO do search_V for each ix,iy
+                V1 = np.einsum('ijk->k', self.V_elstat[:,:,:,ispin]) / np.prod(self.V_elstat.shape[0:2])
+
+            for i in range(0, self.wf.n_states):
                 # --- select states in energy range E_fermi ... E_max
                 if self.wf.get_eps(i, ispin, ik) < self.inputDict['E_fermi']:
                     continue
@@ -515,10 +528,10 @@ class FIM_simulations():
 
                 # get wave function
                 psi_dft,psi_extra = self.extra.get_psi(i,ispin,ik)
-                for IE in self.inputDict['ionization_energies']:
 
+                # --- now sum the FIM signal
+                for IE in self.inputDict['ionization_energies']:
                     V_target = self.wf.get_eps(i, ispin, ik) + IE
-                    V1 = np.einsum('ijk->k', self.total_V[:,:,:,ispin]) / (self.Nx * self.Ny)
                     z_plot = self.search_V(V_target, V1)  # floating point number
                     iz_plot = int(z_plot)  # getting integer part of it
                     lamda = z_plot - iz_plot
