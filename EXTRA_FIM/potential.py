@@ -11,7 +11,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # import matplotlib.patches
-# import scipy.constants
+import netCDF4
+import scipy.constants
 
 
 def extend_potential(
@@ -170,7 +171,9 @@ def extend_potential(
             Gdz = dz * G_abs
             fix_zrange = range(izm, Nz_ext)
 
-            extrapol_pot = epot_fft[kx, ky, izm] * np.exp(-(fix_zrange - izm) * Gdz)
+            extrapol_pot = epot_fft[kx, ky, izm] * np.exp(
+                -(np.asarray(fix_zrange) - izm) * Gdz
+            )
 
             if G_abs <= plotG:
                 axs[2].plot(
@@ -209,3 +212,26 @@ def extend_potential(
 
     axs[1].legend()
     return fig, pot_ext
+
+
+def sx_el_potential3D_cell(working_directory):
+    v_file = netCDF4.Dataset(working_directory + "/vElStat-eV.sxb")
+    v_elstat = np.asarray(v_file["mesh"]).reshape(v_file["dim"])
+    cell = np.asarray(v_file["cell"])
+    return v_elstat, cell * (
+        scipy.constants.physical_constants["Bohr radius"][0] * 1e10
+    )
+
+
+def get_plane_avg(pot):
+    Nxy = np.prod(pot.shape[0:2])
+    if len(pot.shape) == 4:
+        return np.einsum("ijkl->kl", pot) / Nxy
+    else:
+        return np.einsum("ijk->k", pot) / Nxy
+
+
+def sx_el_potential1D_cell(working_directory):
+    v_elstat, cell = sx_el_potential3D_cell(working_directory)
+    V1 = get_plane_avg(v_elstat)
+    return V1, cell
