@@ -70,10 +70,8 @@ def extend_potential(
     """
 
     # --- get 1D potentials
-    elec_potential1D = np.einsum("ijk->k", elec_potential) / np.prod(
-        elec_potential.shape[0:2]
-    )
-    V1 = np.einsum("ijkl->kl", pot) / np.prod(pot.shape[0:2])
+    elec_potential1D = np.mean(elec_potential, axis=(0, 1))
+    V1 = np.mean(pot, axis=(0, 1))
 
     # --- start plotting
     n_plot = 2 if dv_limit is None else 3
@@ -111,20 +109,18 @@ def extend_potential(
     ax.title.set_text("Plane-average potential")
 
     # --- plot 2: in-plane fluctations (in-plane rms)
-    pot_var = np.einsum("ijkl->kl", (pot - V1) ** 2) / np.prod(pot.shape[0:2])
+    pot_var = np.mean((pot - V1) ** 2, axis=(0, 1))
     axs[1].plot(z_pot, np.log10(pot_var) / 2, label="effective potential", color="k")
-    elpot_var = np.einsum("ijk->k", (elec_potential - elec_potential1D) ** 2) / np.prod(
-        elec_potential.shape[0:2]
-    )
+    elpot_var = np.mean((elec_potential - elec_potential1D) ** 2, axis=(0, 1))
     axs[1].plot(
         z_pot,
         np.log10(elpot_var) / 2,
         label="electrostatic potential",
         color="royalblue",
     )
-    xc_var = np.einsum(
-        "ijkl->kl", ((pot.T - elec_potential.T).T - (V1.T - elec_potential1D.T).T) ** 2
-    ) / np.prod(elec_potential.shape[0:2])
+    xc_var = np.mean(
+        ((pot.T - elec_potential.T).T - (V1.T - elec_potential1D.T).T) ** 2, axis=(0, 1)
+    )
     axs[1].plot(z_pot, np.log10(xc_var) / 2, label="xc potential", color="green")
 
     axs[1].set_xlabel(r"z (bohr)")
@@ -205,7 +201,7 @@ def extend_potential(
         axs[2].title.set_text("In-plane fluctuations (Fourier components)")
 
         # plot 2: in-plane variation of extrapolated potential, too
-        ext_var = np.einsum("ijkl->kl", ((pot_ext - V1ext) ** 2) / np.prod(xy_shape))
+        ext_var = np.mean((pot_ext - V1ext) ** 2, axis=(0, 1))
         axs[1].plot(
             z_ext, np.log10(ext_var) / 2, label="extended potential", ls="--", color="r"
         )
@@ -215,6 +211,14 @@ def extend_potential(
 
 
 def sx_el_potential3D_cell(working_directory):
+    """Load electrostatic potential in 3D from SPHInX directory
+    Params:
+        working_directory ... SPHInX directory
+    Returns:
+        (V,cell)
+        V    ... electrostatic potential (in eV) on mesh
+        cell ... cell (in Angstroem)
+    """
     v_file = netCDF4.Dataset(working_directory + "/vElStat-eV.sxb")
     v_elstat = np.asarray(v_file["mesh"]).reshape(v_file["dim"])
     cell = np.asarray(v_file["cell"])
@@ -223,15 +227,15 @@ def sx_el_potential3D_cell(working_directory):
     )
 
 
-def get_plane_avg(pot):
-    Nxy = np.prod(pot.shape[0:2])
-    if len(pot.shape) == 4:
-        return np.einsum("ijkl->kl", pot) / Nxy
-    else:
-        return np.einsum("ijk->k", pot) / Nxy
-
-
 def sx_el_potential1D_cell(working_directory):
+    """Load electrostatic potential in 1D from SPHInX directory
+    Params:
+        working_directory ... SPHInX directory
+    Returns:
+        (V,cell)
+        V    ... plane averaged electrostatic potential (in eV) on z-mesh
+        cell ... cell (in Angstroem)
+    """
     v_elstat, cell = sx_el_potential3D_cell(working_directory)
-    V1 = get_plane_avg(v_elstat)
+    V1 = np.mean(v_elstat, axis=(0, 1))
     return V1, cell

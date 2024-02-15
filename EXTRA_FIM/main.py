@@ -122,7 +122,7 @@ class Residual_extra(numerov_1D):
         self.psi_g_real = None
         if len(total_V.shape) != 3:
             raise ValueError(f"Dimension is {len(total_V.shape)}, should be 3")
-        V1= np.einsum('ijk->k',total_V)/total_V.shape[1]/total_V.shape[0]
+        V1= np.mean(total_V,axis=(0, 1))
         self.total_V=total_V
         super().__init__(V1, h, izend)
         self.psi_match = psi_match
@@ -238,7 +238,7 @@ class potential():
             total_V = np.zeros(list(Potential.shape)+[2], dtype=np.float64)
             total_V[:,:,:,0] = np.add(Potential, xc_Potential_0)
             total_V[:,:,:,1] = np.add(Potential, xc_Potential_1)
-        V1 = np.einsum('ijkl->kl', total_V) / total_V.shape[1] / total_V.shape[0]
+        V1 = np.mean(total_V, axis=(0, 1))
 
         cell = np.asarray(v_file['cell'])
         rec_cell = np.linalg.inv(cell) * 2 * np.pi # get cell coordinates from potential file
@@ -514,10 +514,10 @@ class FIM_simulations():
                 V1 = self.V_elstat[:,ispin]
             elif dim_elstat == 3:
                 # TODO do search_V for each ix,iy
-                V1 = np.einsum('ijk->k', self.V_elstat) / np.prod(self.V_elstat.shape[0:2])
+                V1 = np.mean(self.V_elstat, axis=(0, 1))
             elif dim_elstat == 4:
                 # TODO do search_V for each ix,iy
-                V1 = np.einsum('ijk->k', self.V_elstat[:,:,:,ispin]) / np.prod(self.V_elstat.shape[0:2])
+                V1 = np.mean(self.V_elstat[:,:,:,ispin], axis=(0, 1))
 
             for i in range(0, self.wf.n_states):
                 # --- select states in energy range E_fermi ... E_max

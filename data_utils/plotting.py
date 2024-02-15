@@ -152,10 +152,7 @@ def waves_figure(
     # in-plane average
     ax.plot(
         z,
-        np.log10(
-            np.einsum("ijk->k", psi_dft_abs**2) / np.prod(psi_dft_abs.shape[0:2])
-        )
-        / 2,
+        np.log10(np.mean(psi_dft_abs**2, axis=(0, 1))) / 2,
         label="rms in plane",
     )
 
