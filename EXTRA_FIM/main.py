@@ -346,7 +346,7 @@ class sx_waves_reader():
 
             Returns numpy 3-vector in inverse atomic units
         """
-        return self.k_vec[ik,:]
+        return -self.k_vec[ik,:]
 
     def get_psi(self, i, ispin, ik):
         """ Get wave function for state i, spin ispin, k-point ik
