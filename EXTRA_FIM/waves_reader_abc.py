@@ -1,3 +1,12 @@
+__author__ = "Christoph Freysoldt"
+__copyright__ = (
+    "Copyright 2024, Max-Planck-Institut für Eisenforschung GmbH - "
+    "Computational Materials Design (CM) Department"
+)
+__maintainer__ = "Christoph Freysoldt"
+__email__ = "freysoldt@mpie.de"
+__date__ = "February, 2024"
+
 from abc import ABC, abstractmethod
 
 class waves_reader_abc(ABC):

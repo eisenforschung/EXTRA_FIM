@@ -5,7 +5,7 @@ import scipy
 import netCDF4
 import scipy.optimize
 import os.path
-from EXTRA_FIM.waves_reader_abc import waves_reader_abc
+from .waves_reader_abc import waves_reader_abc
 
 
 __author__ = "Shalini Bhatt"

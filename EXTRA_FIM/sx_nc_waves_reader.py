@@ -1,4 +1,13 @@
-from EXTRA_FIM.waves_reader_abc import waves_reader_abc
+__author__ = "Christoph Freysoldt"
+__copyright__ = (
+    "Copyright 2024, Max-Planck-Institut für Eisenforschung GmbH - "
+    "Computational Materials Design (CM) Department"
+)
+__maintainer__ = "Christoph Freysoldt"
+__email__ = "freysoldt@mpie.de"
+__date__ = "February, 2024"
+
+from .waves_reader_abc import waves_reader_abc
 import netCDF4
 import scipy
 import numpy as np
