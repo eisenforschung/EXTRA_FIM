@@ -162,7 +162,7 @@ def waves_figure(
         from ..EXTRA_FIM.main import extra_waves
 
         waves_extra = extra_waves(Simulator, reader=waves_reader, pot=pot)
-        _, psi_extra = waves_extra.get_psi(139, 0, 23)
+        _, psi_extra = waves_extra.get_psi(istate, ispin, ik)
         psi_extra_abs = np.abs(psi_extra)
         z_extra = np.linspace(
             0, dz * psi_extra_abs.shape[2], psi_extra_abs.shape[2], endpoint=False
