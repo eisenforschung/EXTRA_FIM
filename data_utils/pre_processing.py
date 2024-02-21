@@ -169,9 +169,9 @@ def suggest_input_dictionary(
         )
     for izs, ize in zip(izstart, izend):
         if elec_potential[ize] + 1.0 < elec_potential[izs]:
-            Simulator["izstart_min"] = izstart[0] - 5
-            Simulator["izend"] = izend[0]
-            Simulator["z_max"] = z[izstart[0]] / (
+            Simulator["izstart_min"] = izs - 5
+            Simulator["izend"] = ize
+            Simulator["z_max"] = z[izs] / (
                 scipy.constants.physical_constants["Bohr radius"][0] * 1e10
             )
             break
