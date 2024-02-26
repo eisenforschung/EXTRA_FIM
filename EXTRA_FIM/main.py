@@ -1,10 +1,8 @@
 import numpy as np
 import h5py
-import numba
-import scipy
 import netCDF4
+import scipy.constants
 import scipy.optimize
-import os.path
 from .waves_reader_abc import waves_reader_abc
 from .sx_nc_waves_reader import sx_nc_waves_reader
 
