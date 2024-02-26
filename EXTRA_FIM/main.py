@@ -111,9 +111,9 @@ class fourier_plane_V:
         self.Vn = V_in[:, :, n_in]
 
     def __call__(self, psi):
-        psi_k = np.fft.ifft2(psi)
+        psi_k = np.fft.fft2(psi)
         psi_k = psi_k * self.k_square
-        return np.fft.fft2(psi_k) + self.Vn * psi
+        return np.fft.ifft2(psi_k) + self.Vn * psi
 
 
 class Residual_extra(numerov_1D):
@@ -167,7 +167,7 @@ class Residual_extra(numerov_1D):
         psi_real_num = np.zeros_like(psi_rec_num)
 
         for z in range(self.izstart, self.izend, -1):
-            psi_rec_num[:, :, z] = np.fft.ifft2(psi_real_num[:, :, z])
+            psi_rec_num[:, :, z] = np.fft.fft2(psi_real_num[:, :, z])
 
             for ikx in range(0, self.Nx):
                 for iky in range(0, self.Ny):
@@ -180,8 +180,8 @@ class Residual_extra(numerov_1D):
                         )  # rescaling from good coeff.
 
             # back transform rec to real
-            psi_real_num[:, :, z] = np.fft.fft2(psi_rec_num[:, :, z])
-            psi_real_num[:, :, z + 1] = np.fft.fft2(psi_rec_num[:, :, z + 1])
+            psi_real_num[:, :, z] = np.fft.ifft2(psi_rec_num[:, :, z])
+            psi_real_num[:, :, z + 1] = np.fft.ifft2(psi_rec_num[:, :, z + 1])
             psi_real_num[:, :, z - 1] = numerov_gen(
                 psi_real_num[:, :, z],
                 psi_real_num[:, :, z + 1],
@@ -192,7 +192,7 @@ class Residual_extra(numerov_1D):
                 h=self.h,
             )
 
-        psi_rec_num[:, :, self.izend] = np.fft.ifft2(psi_real_num[:, :, self.izend])
+        psi_rec_num[:, :, self.izend] = np.fft.fft2(psi_real_num[:, :, self.izend])
 
         for ikx in range(0, self.Nx):
             for iky in range(0, self.Ny):
@@ -204,7 +204,7 @@ class Residual_extra(numerov_1D):
 
         # go back to real space
         for z in range(self.izend, self.Nz_max - 1):
-            psi_real_num[:, :, z] = np.fft.fft2(psi_rec_num[:, :, z])
+            psi_real_num[:, :, z] = np.fft.ifft2(psi_rec_num[:, :, z])
 
         return psi_rec_num, psi_real_num
 
@@ -309,7 +309,7 @@ class extra_waves:
         """
         psi_real = self.dft_wv.get_psi(i, ispin, ik)
 
-        psi_match = np.fft.ifft2(psi_real[:, :, self.inputDict["izend"]])
+        psi_match = np.fft.fft2(psi_real[:, :, self.inputDict["izend"]])
         # nrm_psi = np.linalg.norm(psi_match) # needs to be figured out
         nrm_psi = 1e4
         psi_match_1 = psi_match / nrm_psi

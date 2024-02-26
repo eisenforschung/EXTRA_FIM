@@ -91,7 +91,7 @@ class sx_nc_waves_reader(waves_reader_abc):
 
         Returns numpy 3-vector in inverse atomic units
         """
-        return -self.k_vec[ik, :]
+        return self.k_vec[ik, :]
 
     @property
     def nk(self):
