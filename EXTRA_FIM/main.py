@@ -1,11 +1,10 @@
 import numpy as np
 import h5py
-import numba
-import scipy
 import netCDF4
+import scipy.constants
 import scipy.optimize
-import os.path
 from .waves_reader_abc import waves_reader_abc
+from .sx_nc_waves_reader import sx_nc_waves_reader
 
 
 __author__ = "Shalini Bhatt"
@@ -110,9 +109,9 @@ class fourier_plane_V:
         self.Vn = V_in[:, :, n_in]
 
     def __call__(self, psi):
-        psi_k = np.fft.ifft2(psi)
+        psi_k = np.fft.fft2(psi)
         psi_k = psi_k * self.k_square
-        return np.fft.fft2(psi_k) + self.Vn * psi
+        return np.fft.ifft2(psi_k) + self.Vn * psi
 
 
 class Residual_extra(numerov_1D):
@@ -166,7 +165,7 @@ class Residual_extra(numerov_1D):
         psi_real_num = np.zeros_like(psi_rec_num)
 
         for z in range(self.izstart, self.izend, -1):
-            psi_rec_num[:, :, z] = np.fft.ifft2(psi_real_num[:, :, z])
+            psi_rec_num[:, :, z] = np.fft.fft2(psi_real_num[:, :, z])
 
             for ikx in range(0, self.Nx):
                 for iky in range(0, self.Ny):
@@ -179,8 +178,8 @@ class Residual_extra(numerov_1D):
                         )  # rescaling from good coeff.
 
             # back transform rec to real
-            psi_real_num[:, :, z] = np.fft.fft2(psi_rec_num[:, :, z])
-            psi_real_num[:, :, z + 1] = np.fft.fft2(psi_rec_num[:, :, z + 1])
+            psi_real_num[:, :, z] = np.fft.ifft2(psi_rec_num[:, :, z])
+            psi_real_num[:, :, z + 1] = np.fft.ifft2(psi_rec_num[:, :, z + 1])
             psi_real_num[:, :, z - 1] = numerov_gen(
                 psi_real_num[:, :, z],
                 psi_real_num[:, :, z + 1],
@@ -191,7 +190,7 @@ class Residual_extra(numerov_1D):
                 h=self.h,
             )
 
-        psi_rec_num[:, :, self.izend] = np.fft.ifft2(psi_real_num[:, :, self.izend])
+        psi_rec_num[:, :, self.izend] = np.fft.fft2(psi_real_num[:, :, self.izend])
 
         for ikx in range(0, self.Nx):
             for iky in range(0, self.Ny):
@@ -203,7 +202,7 @@ class Residual_extra(numerov_1D):
 
         # go back to real space
         for z in range(self.izend, self.Nz_max - 1):
-            psi_real_num[:, :, z] = np.fft.fft2(psi_rec_num[:, :, z])
+            psi_real_num[:, :, z] = np.fft.ifft2(psi_rec_num[:, :, z])
 
         return psi_rec_num, psi_real_num
 
@@ -259,124 +258,11 @@ class potential:
         return total_V, V1, dz, cell
 
 
-class sx_waves_reader:
-    """Class to read SPHInX waves.sxb files (HDF5 format)
-
-    Initialize with waves.sxb filename, or use load ()
-
-    """
-
-    def __init__(self, inputDict, fname=None):
-        if fname is not None:
-            self.load(inputDict["working_directory"] + "/" + fname)
-
-    def load(self, filename):
-        """Load a waves.sxb file (HDF5 format)
-
-        filename: file name
-        """
-        self.wfile = h5py.File(filename)
-        self._eps = None
-        self._read()
-
-    # Internal: check that wfile is set
-    def _check_loaded(self):
-        if not isinstance(self.wfile, h5py.File):
-            raise "No waves file loaded"
-
-    def _read(self):
-        self._check_loaded()
-        # load various dimensions
-        self.mesh = self.wfile["meshDim"][:]
-        self.Nx, self.Ny, self.Nz = self.mesh
-
-        self.n_states = self.wfile["nPerK"][0]
-        self.n_spin = self.wfile["nSpin"].shape[0]
-        self.k_weights = self.wfile["kWeights"][:]
-
-        # load the fft_idx to map from condensed psi to FFT mesh
-        # (different mapping per k)
-        self._fft_idx = []
-        self._n_gk = self.wfile["nGk"][:]
-        off = 0
-        for ngk in self._n_gk:
-            self._fft_idx.append(self.wfile["fftIdx"][off : off + ngk])
-            off += ngk
-
-        self.k_vec = self.wfile["kVec"][:]
-
-    @property
-    def eps(self):
-        """All eigenvalues (in Hartree) as (nk,n_states) block"""
-        if self._eps is None:
-            self._check_loaded()
-            self._eps = self.wfile["eps"][:].reshape(-1, self.n_spin, self.n_states)
-        return self._eps
-
-    # Define as separate method and speed it up with numba
-    @staticmethod
-    @numba.jit
-    def _fillin(res, psire, psiim, fft_idx):
-        """Distributes condensed psi (real, imag) on full FFT mesh"""
-        rflat = res.flat
-        for ig in range(fft_idx.shape[0]):
-            rflat[fft_idx[ig]] = complex(psire[ig], psiim[ig])
-
-    def get_psi_rec(self, i, ispin, ik):
-        """Loads a single wavefunction on full FFT mesh"""
-        if i < 0 or i >= self.n_states:
-            raise IndexError(f"i={i} fails 0 <= i < n_states={self.n_states}")
-        if ispin < 0 or ispin >= self.n_spin:
-            raise IndexError(f"ispin={ispin} fails 0 <= ispin < n_spin={self.n_spin}")
-        if ik < 0 or ik >= self.nk:
-            raise IndexError(f"ik={ik} fails 0 <= ik < nk={self.nk}")
-
-        res = np.zeros(shape=self.mesh, dtype=np.complex128)
-        off = self._n_gk[ik] * (i + ispin * self.n_states)
-        psire = self.wfile[f"psi-{ik+1}.re"][off : off + self._n_gk[ik]]
-        psiim = self.wfile[f"psi-{ik+1}.im"][off : off + self._n_gk[ik]]
-        self._fillin(res, psire, psiim, self._fft_idx[ik])
-        return res
-
-    @property
-    def nk(self):
-        """Number of k-points"""
-        self._check_loaded()
-        return self.k_weights.shape[0]
-
-    def get_eps(self, i, ispin, ik):
-        """Get eigenvalue (in eV) for state i, spin ispin, k-point ik"""
-        return self._eps[ik, ispin, i] * HARTREE_TO_EV
-
-    def get_kvec(self, ik):
-        """Get k-vector for k-point ik
-
-        Returns numpy 3-vector in inverse atomic units
-        """
-        return -self.k_vec[ik, :]
-
-    def get_psi(self, i, ispin, ik):
-        """Get wave function for state i, spin ispin, k-point ik
-
-        Wave function is returned in real space on the (Nx,Ny,Nz) mesh
-        """
-        return np.fft.ifftn(self.get_psi_rec(i, ispin, ik))
-
-    def kweight(self, ik):
-        """Get integration weight for k-point ik"""
-        return self.k_weights[ik]
-
-    @property
-    def cell(self):
-        """Get simulation cell (in bohr units)"""
-        return np.asarray(self.nc_wf["cell"])
-
-
 class extra_waves:
     def __init__(self, inputDict, reader=None, pot=None):
         self.inputDict = inputDict
         if reader is None:
-            self.dft_wv = sx_waves_reader(inputDict, fname="waves.sxb")
+            self.dft_wv = sx_nc_waves_reader(inputDict['working_directory'] + "/waves.sxb")
         else:
             self.dft_wv = reader
             # check that reader has the required signature
@@ -421,7 +307,7 @@ class extra_waves:
         """
         psi_real = self.dft_wv.get_psi(i, ispin, ik)
 
-        psi_match = np.fft.ifft2(psi_real[:, :, self.inputDict["izend"]])
+        psi_match = np.fft.fft2(psi_real[:, :, self.inputDict["izend"]])
         # nrm_psi = np.linalg.norm(psi_match) # needs to be figured out
         nrm_psi = 1e4
         psi_match_1 = psi_match / nrm_psi
