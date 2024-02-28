@@ -159,7 +159,7 @@ def waves_figure(
     # --- compute and plot extrapolated wave
     if compute_extra:
         print("Computing EXTRA wave...")
-        from ..EXTRA_FIM.main import extra_waves
+        from ..EXTRA_FIM.extra import extra_waves
 
         waves_extra = extra_waves(Simulator, reader=waves_reader, pot=pot)
         _, psi_extra = waves_extra.get_psi(istate, ispin, ik)
