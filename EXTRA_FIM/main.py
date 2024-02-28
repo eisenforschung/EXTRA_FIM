@@ -5,6 +5,7 @@ import scipy.constants
 import scipy.optimize
 from .waves_reader_abc import waves_reader_abc
 from .sx_nc_waves_reader import sx_nc_waves_reader
+from pathlib import Path
 
 
 __author__ = "Shalini Bhatt"
@@ -225,10 +226,10 @@ class potential:
         self.working_directory = inputDict["working_directory"]
 
     def potential_cell(self):
-        v_file = netCDF4.Dataset(self.working_directory + "/vElStat-eV.sxb")
+        v_file = netCDF4.Dataset(Path(self.working_directory) / "vElStat-eV.sxb")
         Potential = np.asarray(v_file["mesh"]).reshape(v_file["dim"])
         Potential = Potential / HARTREE_TO_EV
-        vxc_file = netCDF4.Dataset(self.working_directory + "/vXC.sxb")
+        vxc_file = netCDF4.Dataset(Path(self.working_directory) / "vXC.sxb")
 
         if "mesh" in vxc_file.variables:
             # non-spin calculations
@@ -262,7 +263,7 @@ class extra_waves:
     def __init__(self, inputDict, reader=None, pot=None):
         self.inputDict = inputDict
         if reader is None:
-            self.dft_wv = sx_nc_waves_reader(inputDict['working_directory'] + "/waves.sxb")
+            self.dft_wv = sx_nc_waves_reader(Path(inputDict['working_directory']) / "waves.sxb")
         else:
             self.dft_wv = reader
             # check that reader has the required signature
