@@ -224,7 +224,9 @@ class extra_waves:
     def __init__(self, inputDict, reader=None, pot=None):
         self.inputDict = inputDict
         if reader is None:
-            self.dft_wv = sx_nc_waves_reader(Path(inputDict['working_directory']) / "waves.sxb")
+            self.dft_wv = sx_nc_waves_reader(
+                Path(inputDict["working_directory"]) / "waves.sxb"
+            )
         else:
             self.dft_wv = reader
             # check that reader has the required signature
