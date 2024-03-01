@@ -117,3 +117,29 @@ class sx_nc_waves_reader(waves_reader_abc):
     def cell(self):
         """Get simulation cell (in bohr units)"""
         return np.asarray(self.nc_wf["cell"])
+
+    def get_fermi_energy(self):
+        """Get Fermi energy (in eV)"""
+        # get occupations and eigenvalues
+        focc = np.asarray(self.nc_wf["focc"])
+        eps = np.asarray(self.nc_wf["eps"])
+
+        # get the value of half occupation
+        foccHalf = 0.5 * (np.round(np.max(focc)) + np.round(np.min(focc)))
+        if np.abs(foccHalf * self.n_spin - 1.0) > 1e-6:
+            raise RuntimeError(
+                f"Suspicious value of half-filled occupation: {foccHalf}, should be {1/self.n_spin}"
+            )
+        # find the "occupied" states
+        aboveHalf = focc > foccHalf
+        # occupied: high occupations
+        occ = focc[aboveHalf], eps[aboveHalf]
+        # empty: low occupations
+        unocc = focc[~aboveHalf], eps[~aboveHalf]
+        # find top of occupied and bottom of empty states (index)
+        itop = np.argmax(occ[1])
+        ibottom = np.argmin(unocc[1])
+        # interpolate linearly between these states to find the Fermi energy
+        x = (foccHalf - occ[0][itop]) / (unocc[0][ibottom] - occ[0][itop])
+        eFermi = x * unocc[1][ibottom] + (1 - x) * occ[1][itop]
+        return eFermi * self.HARTREE_TO_EV
