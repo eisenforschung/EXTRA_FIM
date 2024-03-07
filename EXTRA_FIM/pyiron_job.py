@@ -3,8 +3,6 @@ from pyiron_base.jobs.master.parallel import ParallelMaster
 from pyiron_base.jobs.job.jobtype import JobType
 from pyiron_base import JobGenerator
 from pyiron_base.jobs.job.template import TemplateJob
-
-from pathlib import Path
 try:
     import EXTRA_FIM.main as fim
     from EXTRA_FIM.potential import extend_potential, sx_el_potential3D_cell
@@ -34,11 +32,9 @@ class ExtraFimSimulatorRefJob(TemplateJob):
         self.input['structure'] = None
         self.input['ionization_energies'] = None
         self.input['extrapolate_potential'] = False
-
-
-    @property
+    
     def extrpolate_potential(self):
-        elec_potential,_ = sx_el_potential3D_cell (Path(self.input.simulator_dict['working_directory']))
+        elec_potential,_ = sx_el_potential3D_cell (self.input.simulator_dict['working_directory'])
         pot,_,_,cell = fim.potential (self.input.simulator_dict).potential_cell ()
 
         if self.input.extrapolate_potential:
@@ -57,7 +53,7 @@ class ExtraFimSimulatorRefJob(TemplateJob):
     
     @property
     def suggest_input_dict(self):
-        waves_reader = sx_nc_waves_reader(Path(self.input['waves_directory'])/ "waves.sxb")
+        waves_reader = sx_nc_waves_reader(self.input['waves_directory']+ "/waves.sxb")
         e_fermi = waves_reader.get_fermi_energy()
         fig,sim=suggest_input_dictionary(self.input.waves_directory,e_fermi, ionization_energies=self.input['ionization_energies'])
         self.input['simulator_dict'] = sim
@@ -74,7 +70,8 @@ class ExtraFimSimulatorRefJob(TemplateJob):
         pot_ext, elec_ext = self.extrpolate_potential()
         waves_reader = sx_nc_waves_reader(self.input['waves_directory'] + "/waves.sxb")
         fimsim=fim.FIM_simulations(self.input['simulator_dict'],reader=waves_reader,V_total=pot_ext,V_elstat=elec_ext)
-        fimsim.sum_single_k(self.input['kpoint'])
+        self.project_hdf5.create_working_directory()
+        fimsim.sum_single_k(self.input['kpoint'],path=self.working_directory)
         self.status.finished = True
 
 
@@ -99,7 +96,7 @@ class ExtraFimSimulatorJobGenerator(JobGenerator):
         return f"{self._master.job_name}_kpoint_{k_point}"
 
     def modify_job(self, job, parameter):
-        job.set= parameter[1]
+        job.input.kpoint = parameter[1]
         return job
 
 

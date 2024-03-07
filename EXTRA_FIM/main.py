@@ -116,7 +116,7 @@ class FIM_simulations:
         for ik in range(0, self.wf.nk):
             sum_single_k(ik)
 
-    def sum_single_k(self, ik):
+    def sum_single_k(self, ik, **kwargs):
         """compute partial fim image for several ionization energies for all eigenstates between Efermi
         and Emax for one k point (ik). Save the partial dos files"""
 
@@ -175,7 +175,10 @@ class FIM_simulations:
                     )
 
         # --- write output file
-        filename = f"partial_dos{ik}.h5"
+        if 'path' in kwargs:
+            filename = kwargs['path']+'/'+f"partial_dos{ik}.h5"
+        else:
+            filename = f"partial_dos{ik}.h5"
         with h5py.File(filename, "w") as handle:
             handle.create_dataset(
                 "ionization_energies", data=self.inputDict["ionization_energies"]
