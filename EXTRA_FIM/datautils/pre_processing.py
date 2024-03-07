@@ -13,7 +13,7 @@ from mendeleev import element
 import scipy
 
 from .plotting import potential_figure
-from ..EXTRA_FIM.potential import sx_el_potential1D_cell
+from EXTRA_FIM.potential import sx_el_potential1D_cell
 
 
 class PreProcessingFIM:
