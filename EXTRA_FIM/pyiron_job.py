@@ -129,17 +129,17 @@ class ExtraFimSimulatorJobGenerator(JobGenerator):
         return job
 
 
-class ExtraFimSimulator(ParallelMaster):
+class ExtraFimSimulator(ParallelMaster,ExtraFimSimulatorRefJob):
     """ "Pyiron Extra FIM simulator job class to make subjobs for each k point"""
 
     def __init__(self, project, job_name):
-        super(ExtraFimSimulator).__init__(project, job_name)
+        super(ExtraFimSimulatorRefJob,self).__init__(project, job_name=job_name)
         self._job_generator = ExtraFimSimulatorJobGenerator(self)
-
-    def collect_output(self):
-        for job_id in self.child_ids:
-            job = self.project_hdf5.inspect(job_id)
-        return super().collect_output()
+    #TODO: collect_output
+    # def collect_output(self):
+    #     for job_id in self.child_ids:
+    #         job = self.project_hdf5.inspect(job_id)
+    #     return super().collect_output()
 
 
 JobType.register(ExtraFimSimulator)
