@@ -1,11 +1,9 @@
+from pathlib import Path
 import numpy as np
-import netCDF4
 import scipy.constants
 import scipy.optimize
-from .waves_reader_abc import waves_reader_abc
-from .sx_nc_waves_reader import sx_nc_waves_reader
-from pathlib import Path
-
+from EXTRA_FIM.waves_reader_abc import waves_reader_abc
+from EXTRA_FIM.sx_nc_waves_reader import sx_nc_waves_reader
 
 __author__ = "Shalini Bhatt"
 __copyright__ = (

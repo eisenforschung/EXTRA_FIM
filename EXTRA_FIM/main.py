@@ -1,10 +1,10 @@
+from pathlib import Path
 import numpy as np
 import h5py
 import netCDF4
 import scipy.constants
 import scipy.optimize
-from pathlib import Path
-from .extra import extra_waves
+from EXTRA_FIM.extra import extra_waves
 
 
 __author__ = "Shalini Bhatt"

@@ -1,3 +1,4 @@
+from pathlib import Path
 from pyiron_base.utils.error import ImportAlarm
 from pyiron_base.jobs.master.parallel import ParallelMaster
 from pyiron_base.jobs.job.jobtype import JobType
@@ -5,7 +6,6 @@ from pyiron_base import JobGenerator
 from pyiron_base.jobs.job.template import TemplateJob
 import h5py
 import numpy as np
-from pathlib import Path
 from pyiron_atomistics.sphinx.structure import read_atoms
 
 try:
@@ -44,20 +44,20 @@ class ExtraFimSimulatorRefJob(TemplateJob):
         """Extrapolate potential if needed, to extrapolate waves to higher distances"""
 
         elec_potential, _ = sx_el_potential3D_cell(
-            self.input['simulator_dict']["working_directory"]
+            self.input["simulator_dict"]["working_directory"]
         )
-        pot, _, _, cell = fim.potential(self.input['simulator_dict']).potential_cell()
+        pot, _, _, cell = fim.potential(self.input["simulator_dict"]).potential_cell()
 
         if self.input.extrapolate_potential:
-            iz0 = self.input['simulator_dict']["iz_ext_from"]
-            new_z_max = self.input['simulator_dict']["z_ext"]
+            iz0 = self.input["simulator_dict"]["iz_ext_from"]
+            new_z_max = self.input["simulator_dict"]["z_ext"]
             _, pot_ext = extend_potential(
                 elec_potential / fim.HARTREE_TO_EV,
                 iz0,
                 pot,
                 cell,
                 z_max=new_z_max,
-                izend=self.input['simulator_dict']["izend"],
+                izend=self.input["simulator_dict"]["izend"],
                 dv_limit=1e-4,
                 plotG=1,
             )
@@ -72,10 +72,12 @@ class ExtraFimSimulatorRefJob(TemplateJob):
     @property
     def suggest_input_dict(self):
         """Suggests a input dictionary based on the electrostatic potential, Fermi and ionization energy"""
-        waves_reader = sx_nc_waves_reader(Path(self.input["waves_directory"])/"waves.sxb")
+        waves_reader = sx_nc_waves_reader(
+            Path(self.input["waves_directory"]) / "waves.sxb"
+        )
         e_fermi = waves_reader.get_fermi_energy()
         _, sim = suggest_input_dictionary(
-            self.input['waves_directory'],
+            self.input["waves_directory"],
             e_fermi,
             ionization_energies=self.input["ionization_energies"],
         )
@@ -90,12 +92,10 @@ class ExtraFimSimulatorRefJob(TemplateJob):
         self.input["E_max"] = sim["E_max"]  # rename later
         return sim
 
-
     def run_static(self):
 
         self.project_hdf5.create_working_directory()
-        #self.suggest_input_dict
-        
+        # self.suggest_input_dict
         pot_ext, elec_ext = self.extrpolate_potential()
         waves_reader = sx_nc_waves_reader(self.input["waves_directory"] + "/waves.sxb")
         fimsim = fim.FIM_simulations(
@@ -107,7 +107,6 @@ class ExtraFimSimulatorRefJob(TemplateJob):
         self.status.submitted = True
         fimsim.sum_single_k(self.input["kpoint"], path=self.working_directory)
         self.status.finished = True
-
 
 
 class ExtraFimSimulatorJobGenerator(JobGenerator):
@@ -124,7 +123,7 @@ class ExtraFimSimulatorJobGenerator(JobGenerator):
         kpoints = self._master.input.get("kpoint")
         if kpoints is None:
             waves_reader = sx_nc_waves_reader(
-                Path(self._master.input["waves_directory"])/"waves.sxb"
+                Path(self._master.input["waves_directory"]) / "waves.sxb"
             )
         for k in range(waves_reader.nk):
             parameter_lst.append(k)
@@ -146,7 +145,7 @@ class ExtraFimSimulator(ParallelMaster):
     """ "Pyiron Extra FIM simulator job class to make subjobs for each k point"""
 
     def __init__(self, project, job_name):
-        super(ExtraFimSimulator,self).__init__(project, job_name)
+        super(ExtraFimSimulator, self).__init__(project, job_name)
         self.__version__ = "0.1.0"
         self.input["waves_directory"] = None
         self.input["waves_reader"] = None
@@ -155,26 +154,26 @@ class ExtraFimSimulator(ParallelMaster):
         self.input["extrapolate_potential"] = False
         self.input["total_kpoints"] = None
         self._job_generator = ExtraFimSimulatorJobGenerator(self)
-        self.ref_job = ExtraFimSimulatorRefJob(project=project,job_name=job_name)
+        self.ref_job = ExtraFimSimulatorRefJob(project=project, job_name=job_name)
 
     def extrpolate_potential(self):
         """Extrapolate potential if needed, to extrapolate waves to higher distances"""
 
         elec_potential, _ = sx_el_potential3D_cell(
-            self.input['simulator_dict']["working_directory"]
+            self.input["simulator_dict"]["working_directory"]
         )
-        pot, _, _, cell = fim.potential(self.input['simulator_dict']).potential_cell()
+        pot, _, _, cell = fim.potential(self.input["simulator_dict"]).potential_cell()
 
         if self.input.extrapolate_potential:
-            iz0 = self.input['simulator_dict']["iz_ext_from"]
-            new_z_max = self.input['simulator_dict']["z_ext"]
+            iz0 = self.input["simulator_dict"]["iz_ext_from"]
+            new_z_max = self.input["simulator_dict"]["z_ext"]
             _, pot_ext = extend_potential(
                 elec_potential / fim.HARTREE_TO_EV,
                 iz0,
                 pot,
                 cell,
                 z_max=new_z_max,
-                izend=self.input['simulator_dict']["izend"],
+                izend=self.input["simulator_dict"]["izend"],
                 dv_limit=1e-4,
                 plotG=1,
             )
@@ -189,10 +188,12 @@ class ExtraFimSimulator(ParallelMaster):
     @property
     def suggest_input_dict(self):
         """Suggests a input dictionary based on the electrostatic potential, Fermi and ionization energy and populates input"""
-        waves_reader = sx_nc_waves_reader(Path(self.input["waves_directory"])/"waves.sxb")
+        waves_reader = sx_nc_waves_reader(
+            Path(self.input["waves_directory"]) / "waves.sxb"
+        )
         e_fermi = waves_reader.get_fermi_energy()
         _, sim = suggest_input_dictionary(
-            self.input['waves_directory'],
+            self.input["waves_directory"],
             e_fermi,
             ionization_energies=self.input["ionization_energies"],
         )
@@ -210,35 +211,37 @@ class ExtraFimSimulator(ParallelMaster):
 
     @property
     def get_structure(self):
-        if (Path(self.input['waves_directory'])/'relaxedStr.sx').exists():
-            self.structure = read_atoms(Path(self.input['waves_directory'])/'relaxedStr.sx')
+        """Tries to get the relaxed sphinx structure if available"""
+        if (Path(self.input["waves_directory"]) / "relaxedStr.sx").exists():
+            self.structure = read_atoms(
+                Path(self.input["waves_directory"]) / "relaxedStr.sx"
+            )
 
     def collect_output(self):
-        FIM_total ={}
+        FIM_total = {}
         zFIM_total = {}
         for job_id in self.child_ids:
             subjob = self.project_hdf5.load(job_id)
             subjobdir = subjob.working_directory
             ik = subjob.input.kpoint
             IEs = subjob.input.ionization_energies
-            with h5py.File(f'{subjobdir}/partial_dos{ik}.h5') as handle:
-                for IE in IEs:                   
-                    fim_k = np.asarray(handle[f'IE={IE}'])
-                    zfim_k = np.asarray(handle[f'zIE={IE}'])
+            with h5py.File(f"{subjobdir}/partial_dos{ik}.h5") as handle:
+                for IE in IEs:
+                    fim_k = np.asarray(handle[f"IE={IE}"])
+                    zfim_k = np.asarray(handle[f"zIE={IE}"])
                     if IE not in FIM_total:
                         FIM_total[IE] = np.zeros_like(fim_k)
                         zFIM_total[IE] = np.zeros_like(zfim_k)
-                    FIM_total[IE]  += fim_k
-                    zFIM_total[IE] += zfim_k   
+                    FIM_total[IE] += fim_k
+                    zFIM_total[IE] += zfim_k
 
         for IE in IEs:
-            self._output[f'total_FIM/{IE}'] = FIM_total[IE]
-            self._output[f'z_resolved_FIM/{IE}'] = zFIM_total[IE]
+            self._output[f"total_FIM/{IE}"] = FIM_total[IE]
+            self._output[f"z_resolved_FIM/{IE}"] = zFIM_total[IE]
 
         with self.project_hdf5.open("output") as hdf5_out:
-            for key,val in self._output.items():
+            for key, val in self._output.items():
                 hdf5_out[key] = val
 
 
 JobType.register(ExtraFimSimulator)
-
