@@ -4,7 +4,7 @@ import h5py
 import netCDF4
 import scipy.constants
 import scipy.optimize
-from EXTRA_FIM.extra import extra_waves
+from .extra import extra_waves
 
 
 __author__ = "Shalini Bhatt"
