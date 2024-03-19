@@ -156,7 +156,7 @@ class ExtraFimSimulator(ParallelMaster):
         self._job_generator = ExtraFimSimulatorJobGenerator(self)
         self.ref_job = ExtraFimSimulatorRefJob(project=project, job_name=job_name)
 
-    def extrpolate_potential(self):
+    def extrapolate_potential(self):
         """Extrapolate potential if needed, to extrapolate waves to higher distances"""
 
         elec_potential, _ = sx_el_potential3D_cell(
