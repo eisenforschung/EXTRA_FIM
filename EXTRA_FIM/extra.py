@@ -2,8 +2,8 @@ from pathlib import Path
 import numpy as np
 import scipy.constants
 import scipy.optimize
-from EXTRA_FIM.waves_reader_abc import waves_reader_abc
-from EXTRA_FIM.sx_nc_waves_reader import sx_nc_waves_reader
+from .waves_reader_abc import waves_reader_abc
+from .sx_nc_waves_reader import sx_nc_waves_reader
 
 __author__ = "Shalini Bhatt"
 __copyright__ = (
