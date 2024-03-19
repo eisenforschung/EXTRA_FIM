@@ -40,7 +40,7 @@ class ExtraFimSimulatorRefJob(TemplateJob):
         self.input["extrapolate_potential"] = False
         self.input["total_kpoints"] = None
 
-    def extrpolate_potential(self):
+    def extrapolate_potential(self):
         """Extrapolate potential if needed, to extrapolate waves to higher distances"""
 
         elec_potential, _ = sx_el_potential3D_cell(
