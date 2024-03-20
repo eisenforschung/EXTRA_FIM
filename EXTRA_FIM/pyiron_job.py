@@ -69,7 +69,7 @@ class ExtraFimSimulatorRefJob(TemplateJob):
             pot_ext = pot
             elec_ext = elec_potential
         return pot_ext, elec_potential
-
+    
     def suggest_input_dict(self):
         """Suggests a input dictionary based on the electrostatic potential, 
         Fermi and ionization energy"""
@@ -170,7 +170,7 @@ class ExtraFimSimulator(ParallelMaster):
             Path(self.input["waves_directory"]) / "waves.sxb"
         )
         e_fermi = waves_reader.get_fermi_energy()
-        _, sim = self.ref_job.suggest_input_dictionary(
+        _, sim = self.ref_job.suggest_input_dict(
             self.input["waves_directory"],
             e_fermi,
             ionization_energies=self.input["ionization_energies"],
