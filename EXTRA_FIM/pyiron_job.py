@@ -171,7 +171,7 @@ class ExtraFimSimulator(ParallelMaster):
             Path(self.input["waves_directory"]) / "waves.sxb"
         )
         e_fermi = waves_reader.get_fermi_energy()
-        self.ref_job.iput["waves_directory"] = self.input["waves_directory"]
+        self.ref_job.input["waves_directory"] = self.input["waves_directory"]
         self.ref_job.input["ionization_energies"] = self.input["ionization_energies"]
         self.ref_job.input["E_fermi"] = e_fermi
         _, sim = self.ref_job.suggest_input_dict()
