@@ -1,3 +1,4 @@
+'''Class to create pyiron jobs for ExtraFIM'''
 from pathlib import Path
 from pyiron_base.utils.error import ImportAlarm
 from pyiron_base.jobs.master.parallel import ParallelMaster
@@ -69,9 +70,9 @@ class ExtraFimSimulatorRefJob(TemplateJob):
             elec_ext = elec_potential
         return pot_ext, elec_potential
 
-    @property
     def suggest_input_dict(self):
-        """Suggests a input dictionary based on the electrostatic potential, Fermi and ionization energy"""
+        """Suggests a input dictionary based on the electrostatic potential, 
+        Fermi and ionization energy"""
         waves_reader = sx_nc_waves_reader(
             Path(self.input["waves_directory"]) / "waves.sxb"
         )
@@ -96,7 +97,7 @@ class ExtraFimSimulatorRefJob(TemplateJob):
 
         self.project_hdf5.create_working_directory()
         # self.suggest_input_dict
-        pot_ext, elec_ext = self.extrpolate_potential()
+        pot_ext, elec_ext = self.extrapolate_potential()
         waves_reader = sx_nc_waves_reader(self.input["waves_directory"] + "/waves.sxb")
         fimsim = fim.FIM_simulations(
             self.input["simulator_dict"],
@@ -155,61 +156,28 @@ class ExtraFimSimulator(ParallelMaster):
         self.input["total_kpoints"] = None
         self._job_generator = ExtraFimSimulatorJobGenerator(self)
         self.ref_job = ExtraFimSimulatorRefJob(project=project, job_name=job_name)
+        self.structure = None
 
     def extrapolate_potential(self):
-        """Extrapolate potential if needed, to extrapolate waves to higher distances"""
-
-        elec_potential, _ = sx_el_potential3D_cell(
-            self.input["simulator_dict"]["working_directory"]
-        )
-        pot, _, _, cell = fim.potential(self.input["simulator_dict"]).potential_cell()
-
-        if self.input.extrapolate_potential:
-            iz0 = self.input["simulator_dict"]["iz_ext_from"]
-            new_z_max = self.input["simulator_dict"]["z_ext"]
-            _, pot_ext = extend_potential(
-                elec_potential / fim.HARTREE_TO_EV,
-                iz0,
-                pot,
-                cell,
-                z_max=new_z_max,
-                izend=self.input["simulator_dict"]["izend"],
-                dv_limit=1e-4,
-                plotG=1,
-            )
-            # copy extension from pot to elec_potential
-            elec_ext = pot_ext[:, :, :, 0] * fim.HARTREE_TO_EV
-            elec_ext[:, :, 0:iz0] = elec_potential[:, :, :iz0]
-        else:
-            pot_ext = pot
-            elec_ext = elec_potential
+        '''returns extrapolated potential if true'''
+        pot_ext, elec_potential = self.ref_job.extrapolate_potential()
         return pot_ext, elec_potential
 
-    @property
     def suggest_input_dict(self):
-        """Suggests a input dictionary based on the electrostatic potential, Fermi and ionization energy and populates input"""
+        """Suggests a input dictionary based on the electrostatic potential, 
+        Fermi and ionization energy and populates input"""
         waves_reader = sx_nc_waves_reader(
             Path(self.input["waves_directory"]) / "waves.sxb"
         )
         e_fermi = waves_reader.get_fermi_energy()
-        _, sim = suggest_input_dictionary(
+        _, sim = self.ref_job.suggest_input_dictionary(
             self.input["waves_directory"],
             e_fermi,
             ionization_energies=self.input["ionization_energies"],
         )
-        self.input["total_kpoints"] = waves_reader.nk
-        self.input["simulator_dict"] = sim
-        self.input["z_max"] = sim["z_max"]  # rename later
-        self.input["izstart_min"] = sim["izstart_min"]  # rename later
-        self.input["izend"] = sim["izend"]  # rename later
-        self.input["limit"] = sim["limit"]  # rename later
-        self.input["cutoff"] = sim["cutoff"]  # rename later
-        self.input["E_fermi"] = sim["E_fermi"]  # rename later
-        self.input["E_max"] = sim["E_max"]  # rename later
-        self.get_structure
+        self.get_structure()
         return sim
 
-    @property
     def get_structure(self):
         """Tries to get the relaxed sphinx structure if available"""
         if (Path(self.input["waves_directory"]) / "relaxedStr.sx").exists():
