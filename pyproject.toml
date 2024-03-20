@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "extra-fim"
+version = "0.1.0"
+description = "Does spatial extrapolation of wavefunctions from a DFT code. The extrapolated waves are correctly extrapolated to arbitrary precision. Allows alloes FIM image simulations based on Extrapolated waves."
+authors = ["Shalini Bhatt <s.bhatt@mpie.de>, Shyam Katnagallu <s.katnagallu>, Christoph Freysoldt <freysoldt@mpie.de>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+numpy = "^1.26.4"
+h5py = "^3.10.0"
+netCDF4 = "^1.6.5"
+scipy = "^1.12.0"
+matplotlib = "^3.8.3"
+
+[tool.poetry.group.dev.dependencies]
+plotly = "^5.19.0"
+pyiron = "^0.5.2"
+pyiron-atomistics = "^0.4.17"
+pyiron-ontology = "^0.1.4"
+ipykernel = "^6.29.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
