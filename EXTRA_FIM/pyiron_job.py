@@ -1,4 +1,5 @@
-'''Class to create pyiron jobs for ExtraFIM'''
+"""Class to create pyiron jobs for ExtraFIM"""
+
 from pathlib import Path
 from pyiron_base.utils.error import ImportAlarm
 from pyiron_base.jobs.master.parallel import ParallelMaster
@@ -71,7 +72,7 @@ class ExtraFimSimulatorRefJob(TemplateJob):
         return pot_ext, elec_potential
     
     def suggest_input_dict(self):
-        """Suggests a input dictionary based on the electrostatic potential, 
+        """Suggests a input dictionary based on the electrostatic potential,
         Fermi and ionization energy"""
         waves_reader = sx_nc_waves_reader(
             Path(self.input["waves_directory"]) / "waves.sxb"
@@ -143,7 +144,7 @@ class ExtraFimSimulatorJobGenerator(JobGenerator):
 
 
 class ExtraFimSimulator(ParallelMaster):
-    """ "Pyiron Extra FIM simulator job class to make subjobs for each k point"""
+    """ Pyiron Extra FIM simulator job class to make subjobs for each k point"""
 
     def __init__(self, project, job_name):
         super(ExtraFimSimulator, self).__init__(project, job_name)
@@ -159,22 +160,21 @@ class ExtraFimSimulator(ParallelMaster):
         self.structure = None
 
     def extrapolate_potential(self):
-        '''returns extrapolated potential if true'''
+        """returns extrapolated potential if true"""
         pot_ext, elec_potential = self.ref_job.extrapolate_potential()
         return pot_ext, elec_potential
 
     def suggest_input_dict(self):
-        """Suggests a input dictionary based on the electrostatic potential, 
+        """Suggests a input dictionary based on the electrostatic potential,
         Fermi and ionization energy and populates input"""
         waves_reader = sx_nc_waves_reader(
             Path(self.input["waves_directory"]) / "waves.sxb"
         )
         e_fermi = waves_reader.get_fermi_energy()
-        _, sim = self.ref_job.suggest_input_dict(
-            self.input["waves_directory"],
-            e_fermi,
-            ionization_energies=self.input["ionization_energies"],
-        )
+        self.ref_job.iput["waves_directory"] = self.input["waves_directory"]
+        self.ref_job.input["ionization_energies"] = self.input["ionization_energies"]
+        self.ref_job.input["E_fermi"] = e_fermi
+        _, sim = self.ref_job.suggest_input_dict()
         self.get_structure()
         return sim
 
